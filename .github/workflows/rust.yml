@@ -2,6 +2,9 @@ on: [push, pull_request, workflow_dispatch]
 
 name: CI
 
+permissions:
+  contents: write # for committing to website branch.
+
 env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
@@ -88,6 +91,7 @@ jobs:
 
   trunk:
     name: trunk
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +104,17 @@ jobs:
       - name: Download and install Trunk binary
         run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
       - name: Build
-        run: ./trunk build
+        run: ./trunk build --release --public-url $public_url
+        env:
+          public_url: "https://tools.highdex.org/pf1_spell_search/"
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: website
+          folder: dist
+          # this option will not maintain any history of your previous pages deployment
+          # set to false if you want all page build to be committed to your gh-pages branch history
+          single-commit: false
 
   build:
     runs-on: ${{ matrix.os }}
