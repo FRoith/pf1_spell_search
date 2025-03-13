@@ -34,75 +34,68 @@ where
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq)]
-pub enum OrderType {
+pub enum RowOrder {
     None,
-    Name(bool),
-    School(bool),
-    Level(bool),
-    Source(bool),
+    Ascending,
+    Descending,
 }
 
-impl OrderType {
-    fn get_all() -> Vec<Self> {
-        vec![
-            Self::None,
-            Self::Name(false),
-            Self::Name(true),
-            Self::School(false),
-            Self::School(true),
-            Self::Level(false),
-            Self::Level(true),
-            Self::Source(false),
-            Self::Source(true),
-        ]
-    }
-
-    fn title(&self) -> String {
+impl RowOrder {
+    fn n(&self) -> Self {
         match self {
-            Self::None => "Default",
-            Self::Name(true) => "Name ^",
-            Self::Name(false) => "Name v",
-            Self::School(true) => "School ^",
-            Self::School(false) => "School v",
-            Self::Level(true) => "Level ^",
-            Self::Level(false) => "Level v",
-            Self::Source(true) => "Source ^",
-            Self::Source(false) => "Source v",
+            Self::None => Self::Ascending,
+            Self::Ascending => Self::Descending,
+            Self::Descending => Self::None,
         }
-        .to_string()
     }
 
-    fn compare(&self, a: &Spell, b: &Spell, c: u32, d: u32) -> std::cmp::Ordering {
+    fn p(&self) -> Self {
         match self {
-            Self::None => std::cmp::Ordering::Equal,
-            Self::Name(i) => {
-                if *i {
-                    b.name.cmp(&a.name)
-                } else {
-                    a.name.cmp(&b.name)
-                }
+            Self::None => Self::Descending,
+            Self::Ascending => Self::None,
+            Self::Descending => Self::Ascending,
+        }
+    }
+
+    fn compare(&self, col: &ColType, a: &Spell, b: &Spell, c: u32, d: u32) -> std::cmp::Ordering {
+        match (self, col) {
+            (Self::Ascending, ColType::Name(_)) => a.name.cmp(&b.name),
+            (Self::Ascending, ColType::School(_)) => a.school.cmp(&b.school),
+            (Self::Ascending, ColType::Level(_)) => c.cmp(&d),
+            (Self::Ascending, ColType::Subschools(_)) => a.subschool.cmp(&b.subschool),
+            (Self::Ascending, ColType::Domain(_)) => a.domain.cmp(&b.domain),
+            (Self::Ascending, ColType::Descriptors(_)) => a.descriptors.cmp(&b.descriptors),
+            (Self::Ascending, ColType::Components(_)) => a.components.cmp(&b.components),
+            (Self::Ascending, ColType::Range(_)) => a.range.cmp(&b.range),
+            (Self::Ascending, ColType::Area(_)) => a.area.cmp(&b.area),
+            (Self::Ascending, ColType::Effect(_)) => a.effect.cmp(&b.effect),
+            (Self::Ascending, ColType::Targets(_)) => a.targets.cmp(&b.targets),
+            (Self::Ascending, ColType::Duration(_)) => a.duration.cmp(&b.duration),
+            (Self::Ascending, ColType::SavingThrow(_)) => a.saving_throw.cmp(&b.duration),
+            (Self::Ascending, ColType::SpellResistance(_)) => {
+                a.spell_resistance.cmp(&b.spell_resistance)
             }
-            Self::School(i) => {
-                if *i {
-                    b.school.cmp(&a.school)
-                } else {
-                    a.school.cmp(&b.school)
-                }
+            (Self::Ascending, ColType::Description(_)) => a.description.cmp(&b.description),
+            (Self::Ascending, ColType::Source(_)) => a.source.cmp(&b.source),
+            (Self::Descending, ColType::Name(_)) => b.name.cmp(&a.name),
+            (Self::Descending, ColType::School(_)) => b.school.cmp(&a.school),
+            (Self::Descending, ColType::Level(_)) => d.cmp(&c),
+            (Self::Descending, ColType::Subschools(_)) => b.subschool.cmp(&a.subschool),
+            (Self::Descending, ColType::Domain(_)) => b.domain.cmp(&a.domain),
+            (Self::Descending, ColType::Descriptors(_)) => b.descriptors.cmp(&a.descriptors),
+            (Self::Descending, ColType::Components(_)) => b.components.cmp(&a.components),
+            (Self::Descending, ColType::Range(_)) => b.range.cmp(&a.range),
+            (Self::Descending, ColType::Area(_)) => b.area.cmp(&a.area),
+            (Self::Descending, ColType::Effect(_)) => b.effect.cmp(&a.effect),
+            (Self::Descending, ColType::Targets(_)) => b.targets.cmp(&a.targets),
+            (Self::Descending, ColType::Duration(_)) => b.duration.cmp(&a.duration),
+            (Self::Descending, ColType::SavingThrow(_)) => b.saving_throw.cmp(&a.saving_throw),
+            (Self::Descending, ColType::SpellResistance(_)) => {
+                b.spell_resistance.cmp(&a.spell_resistance)
             }
-            Self::Level(i) => {
-                if *i {
-                    c.cmp(&d)
-                } else {
-                    d.cmp(&c)
-                }
-            }
-            Self::Source(i) => {
-                if *i {
-                    b.source.cmp(&a.source)
-                } else {
-                    a.source.cmp(&b.source)
-                }
-            }
+            (Self::Descending, ColType::Description(_)) => b.description.cmp(&a.description),
+            (Self::Descending, ColType::Source(_)) => b.source.cmp(&a.source),
+            (_, _) => std::cmp::Ordering::Equal,
         }
     }
 }
@@ -238,8 +231,9 @@ impl ClassType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Eq, PartialEq)]
 pub enum ColType {
+    None,
     Name(bool),
     School(bool),
     Level(bool),
@@ -261,6 +255,7 @@ pub enum ColType {
 impl ColType {
     fn title(&self) -> String {
         match self {
+            Self::None => "",
             Self::Name(_) => "Name",
             Self::School(_) => "Spellschool",
             Self::Level(_) => "Level",
@@ -281,30 +276,31 @@ impl ColType {
         .to_string()
     }
 
-    fn get_all() -> Vec<Self> {
+    fn get_all() -> Vec<(Self, RowOrder)> {
         [
-            Self::Name(true),
-            Self::School(true),
-            Self::Level(false),
-            Self::Subschools(false),
-            Self::Domain(false),
-            Self::Descriptors(false),
-            Self::Components(false),
-            Self::Range(false),
-            Self::Area(false),
-            Self::Effect(false),
-            Self::Targets(false),
-            Self::Duration(false),
-            Self::SavingThrow(false),
-            Self::SpellResistance(false),
-            Self::Description(false),
-            Self::Source(true),
+            (Self::Name(true), RowOrder::None),
+            (Self::School(true), RowOrder::None),
+            (Self::Level(false), RowOrder::None),
+            (Self::Subschools(false), RowOrder::None),
+            (Self::Domain(false), RowOrder::None),
+            (Self::Descriptors(false), RowOrder::None),
+            (Self::Components(false), RowOrder::None),
+            (Self::Range(false), RowOrder::None),
+            (Self::Area(false), RowOrder::None),
+            (Self::Effect(false), RowOrder::None),
+            (Self::Targets(false), RowOrder::None),
+            (Self::Duration(false), RowOrder::None),
+            (Self::SavingThrow(false), RowOrder::None),
+            (Self::SpellResistance(false), RowOrder::None),
+            (Self::Description(false), RowOrder::None),
+            (Self::Source(true), RowOrder::None),
         ]
         .into()
     }
 
     fn get_bool(&self) -> bool {
         *match self {
+            Self::None => &false,
             Self::Name(b) => b,
             Self::School(b) => b,
             Self::Level(b) => b,
@@ -326,6 +322,7 @@ impl ColType {
 
     fn get_bool_mut(&mut self) -> &mut bool {
         match self {
+            Self::None => panic!("should never happen"),
             Self::Name(ref mut b) => b,
             Self::School(ref mut b) => b,
             Self::Level(ref mut b) => b,
@@ -571,7 +568,7 @@ impl eframe::App for SpellSearchApp {
                 }
 
                 ui.menu_button("Columns", |ui| {
-                    for col in &mut self.spell_table.shown_columns {
+                    for (col, _) in &mut self.spell_table.shown_columns {
                         let title = col.title();
                         ui.checkbox(col.get_bool_mut(), title);
                     }
@@ -600,9 +597,8 @@ struct SpellTable {
     // This how you opt-out of serialization of a field
     value: Vec<Spell>,
 
-    shown_columns: Vec<ColType>,
+    shown_columns: Vec<(ColType, RowOrder)>,
     selected_class: ClassType,
-    selected_sorting: OrderType,
     filter_string: String,
     selected_spell: Option<Spell>,
     filter_window: FilterWindow,
@@ -618,12 +614,11 @@ fn load_spell_table() -> Vec<Spell> {
 
 impl SpellTable {
     fn new() -> Self {
-        let shown_columns: Vec<ColType> = ColType::get_all();
+        let shown_columns: Vec<(ColType, RowOrder)> = ColType::get_all();
         Self {
             value: load_spell_table(),
             shown_columns,
             selected_class: ClassType::SpellLikeAbility,
-            selected_sorting: OrderType::None,
             filter_string: String::new(),
             selected_spell: None,
             filter_window: FilterWindow::new(),
@@ -642,15 +637,6 @@ impl SpellTable {
                     }
                 });
 
-            egui::ComboBox::from_label("Order")
-                .selected_text(self.selected_sorting.title())
-                .show_ui(ui, |ui| {
-                    for e in OrderType::get_all() {
-                        let title = e.title();
-                        ui.selectable_value(&mut self.selected_sorting, e, title);
-                    }
-                });
-
             ui.separator();
 
             let s: &mut egui::Style = ui.style_mut();
@@ -661,7 +647,11 @@ impl SpellTable {
                 .striped(true)
                 .columns(
                     Column::auto().resizable(true),
-                    self.shown_columns.iter().filter(|x| x.get_bool()).count() - 1,
+                    self.shown_columns
+                        .iter()
+                        .filter(|(x, _)| x.get_bool())
+                        .count()
+                        - 1,
                 )
                 .column(Column::remainder())
                 .header(20.0, |mut header: TableRow<'_, '_>| {
@@ -674,11 +664,44 @@ impl SpellTable {
     }
 
     fn render_header(&mut self, header: &mut egui_extras::TableRow<'_, '_>) {
-        for col in &mut self.shown_columns {
+        let mut clicked = ColType::None;
+        for (col, order) in &mut self.shown_columns {
             if col.get_bool() {
                 header.col(|ui| {
-                    ui.heading(col.title());
+                    ui.horizontal(|ui| {
+                        let btn = match order {
+                            RowOrder::None => egui::Button::new("⏵"),
+                            RowOrder::Ascending => {
+                                egui::Button::new("⏷").fill(ui.visuals().selection.bg_fill)
+                            }
+                            RowOrder::Descending => {
+                                egui::Button::new("⏶").fill(ui.visuals().selection.bg_fill)
+                            }
+                        };
+                        let resp = ui.add(btn);
+                        ui.heading(col.title());
+
+                        if clicked != ColType::None {
+                            *order = RowOrder::None;
+                        }
+                        if resp.clicked() {
+                            *order = order.n();
+                            clicked = col.clone();
+                        }
+                        if resp.secondary_clicked() {
+                            *order = order.p();
+                            clicked = col.clone();
+                        }
+                    });
                 });
+            }
+        }
+        if clicked != ColType::None {
+            for (col, order) in &mut self.shown_columns {
+                if clicked == *col {
+                    break;
+                }
+                *order = RowOrder::None;
             }
         }
     }
@@ -695,17 +718,19 @@ impl SpellTable {
             })
             .filter(|(_spell, sl)| self.filter_window.test_sl(format!("{}", sl)))
             .collect();
-        stuff.sort_by(|(spell1, level1), (spell2, level2)| {
-            self.selected_sorting
-                .compare(spell1, spell2, *level1, *level2)
-        });
+        for (col, ordering) in &self.shown_columns {
+            stuff.sort_by(|(spell1, level1), (spell2, level2)| {
+                ordering.compare(col, spell1, spell2, *level1, *level2)
+            });
+        }
 
         body.rows(15.0, stuff.len(), |mut row: TableRow<'_, '_>| {
             let (spell, level) = stuff[row.index()];
             //row.set_selected(selected);
-            for col in &self.shown_columns {
+            for (col, _) in &self.shown_columns {
                 if col.get_bool() {
                     match col {
+                        ColType::None => {}
                         ColType::Name(_) => {
                             row.col(|ui| {
                                 ui.add(egui::Label::new(&spell.name).selectable(false));
