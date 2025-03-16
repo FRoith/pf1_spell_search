@@ -1,4 +1,5 @@
 use egui_extras::{Column, TableBuilder, TableRow};
+use filter_derive::FilterReprMacro;
 use filter_repr::FilterRepr;
 
 use serde::{
@@ -8,10 +9,10 @@ use serde::{
 
 use crate::{
     filters::{
-        Domain, Level, Save, SpellComponent, SpellDescriptor, SpellResistance, Spellschool,
-        Subschool,
+        Domain, FilterState, Level, Save, SpellComponent, SpellDescriptor, SpellResistance,
+        Spellschool, Subschool,
     },
-    toggle::toggle,
+    util::toggle,
 };
 
 fn bool_from_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
@@ -57,11 +58,18 @@ impl RowOrder {
         }
     }
 
-    fn compare(&self, col: &ColType, a: &Spell, b: &Spell, c: u32, d: u32) -> std::cmp::Ordering {
+    fn compare(
+        &self,
+        col: &ColType,
+        a: &Spell,
+        b: &Spell,
+        c: &String,
+        d: &String,
+    ) -> std::cmp::Ordering {
         match (self, col) {
             (Self::Ascending, ColType::Name(_)) => a.name.cmp(&b.name),
             (Self::Ascending, ColType::School(_)) => a.school.cmp(&b.school),
-            (Self::Ascending, ColType::Level(_)) => c.cmp(&d),
+            (Self::Ascending, ColType::Level(_)) => c.cmp(d),
             (Self::Ascending, ColType::Subschools(_)) => a.subschool.cmp(&b.subschool),
             (Self::Ascending, ColType::Domain(_)) => a.domain.cmp(&b.domain),
             (Self::Ascending, ColType::Descriptors(_)) => a.descriptors.cmp(&b.descriptors),
@@ -79,7 +87,7 @@ impl RowOrder {
             (Self::Ascending, ColType::Source(_)) => a.source.cmp(&b.source),
             (Self::Descending, ColType::Name(_)) => b.name.cmp(&a.name),
             (Self::Descending, ColType::School(_)) => b.school.cmp(&a.school),
-            (Self::Descending, ColType::Level(_)) => d.cmp(&c),
+            (Self::Descending, ColType::Level(_)) => d.cmp(c),
             (Self::Descending, ColType::Subschools(_)) => b.subschool.cmp(&a.subschool),
             (Self::Descending, ColType::Domain(_)) => b.domain.cmp(&a.domain),
             (Self::Descending, ColType::Descriptors(_)) => b.descriptors.cmp(&a.descriptors),
@@ -100,134 +108,299 @@ impl RowOrder {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Eq, PartialEq, FilterReprMacro)]
 pub enum ClassType {
-    SpellLikeAbility,
-    Sorcerer,
-    Wizard,
-    Cleric,
-    Druid,
-    Ranger,
-    Bard,
-    Paladin,
-    Alchemist,
-    Summoner,
-    Witch,
-    Inquisitor,
-    Oracle,
-    Antipaladin,
-    Magus,
-    Adept,
-    Bloodrager,
-    Shaman,
-    Psychic,
-    Medium,
-    Mesmerist,
-    Occultist,
-    Spiritualist,
-    Skald,
-    Investigator,
-    Hunter,
-    UncSummoner,
+    Sorcerer(FilterState),
+    Wizard(FilterState),
+    Cleric(FilterState),
+    Druid(FilterState),
+    Ranger(FilterState),
+    Bard(FilterState),
+    Paladin(FilterState),
+    Alchemist(FilterState),
+    Summoner(FilterState),
+    Witch(FilterState),
+    Inquisitor(FilterState),
+    Oracle(FilterState),
+    Antipaladin(FilterState),
+    Magus(FilterState),
+    Adept(FilterState),
+    Bloodrager(FilterState),
+    Shaman(FilterState),
+    Psychic(FilterState),
+    Medium(FilterState),
+    Mesmerist(FilterState),
+    Occultist(FilterState),
+    Spiritualist(FilterState),
+    Skald(FilterState),
+    Investigator(FilterState),
+    Hunter(FilterState),
+    UncSummoner(FilterState),
 }
 
 impl ClassType {
     fn title(&self) -> String {
         match self {
-            Self::SpellLikeAbility => "Spell Like Ability",
-            Self::Sorcerer => "Sorcerer",
-            Self::Wizard => "Wizard",
-            Self::Cleric => "Cleric",
-            Self::Druid => "Druid",
-            Self::Ranger => "Ranger",
-            Self::Bard => "Bard",
-            Self::Paladin => "Paladin",
-            Self::Alchemist => "Alchemist",
-            Self::Summoner => "Summoner",
-            Self::Witch => "Witch",
-            Self::Inquisitor => "Inquisitor",
-            Self::Oracle => "Oracle",
-            Self::Antipaladin => "Antipaladin",
-            Self::Magus => "Magus",
-            Self::Adept => "Adept",
-            Self::Bloodrager => "Bloodrager",
-            Self::Shaman => "Shaman",
-            Self::Psychic => "Psychic",
-            Self::Medium => "Medium",
-            Self::Mesmerist => "Mesmerist",
-            Self::Occultist => "Occultist",
-            Self::Spiritualist => "Spiritualist",
-            Self::Skald => "Skald",
-            Self::Investigator => "Investigator",
-            Self::Hunter => "Hunter",
-            Self::UncSummoner => "Unchained Summoner",
+            Self::Sorcerer(_) => "Sorcerer",
+            Self::Wizard(_) => "Wizard",
+            Self::Cleric(_) => "Cleric",
+            Self::Druid(_) => "Druid",
+            Self::Ranger(_) => "Ranger",
+            Self::Bard(_) => "Bard",
+            Self::Paladin(_) => "Paladin",
+            Self::Alchemist(_) => "Alchemist",
+            Self::Summoner(_) => "Summoner",
+            Self::Witch(_) => "Witch",
+            Self::Inquisitor(_) => "Inquisitor",
+            Self::Oracle(_) => "Oracle",
+            Self::Antipaladin(_) => "Antipaladin",
+            Self::Magus(_) => "Magus",
+            Self::Adept(_) => "Adept",
+            Self::Bloodrager(_) => "Bloodrager",
+            Self::Shaman(_) => "Shaman",
+            Self::Psychic(_) => "Psychic",
+            Self::Medium(_) => "Medium",
+            Self::Mesmerist(_) => "Mesmerist",
+            Self::Occultist(_) => "Occultist",
+            Self::Spiritualist(_) => "Spiritualist",
+            Self::Skald(_) => "Skald",
+            Self::Investigator(_) => "Investigator",
+            Self::Hunter(_) => "Hunter",
+            Self::UncSummoner(_) => "Unchained Summoner",
         }
         .to_string()
     }
 
     fn get_value(&self, spell: &Spell) -> Option<u32> {
         match self {
-            Self::SpellLikeAbility => Some(spell.sla_level),
-            Self::Sorcerer => spell.sor,
-            Self::Wizard => spell.wiz,
-            Self::Cleric => spell.cleric,
-            Self::Druid => spell.druid,
-            Self::Ranger => spell.ranger,
-            Self::Bard => spell.bard,
-            Self::Paladin => spell.paladin,
-            Self::Alchemist => spell.alchemist,
-            Self::Summoner => spell.summoner,
-            Self::Witch => spell.witch,
-            Self::Inquisitor => spell.inquisitor,
-            Self::Oracle => spell.oracle,
-            Self::Antipaladin => spell.antipaladin,
-            Self::Magus => spell.magus,
-            Self::Adept => spell.adept,
-            Self::Bloodrager => spell.bloodrager,
-            Self::Shaman => spell.shaman,
-            Self::Psychic => spell.psychic,
-            Self::Medium => spell.medium,
-            Self::Mesmerist => spell.mesmerist,
-            Self::Occultist => spell.occultist,
-            Self::Spiritualist => spell.spiritualist,
-            Self::Skald => spell.skald,
-            Self::Investigator => spell.investigator,
-            Self::Hunter => spell.hunter,
-            Self::UncSummoner => spell.summoner_unchained,
+            Self::Sorcerer(FilterState::Positive) => spell.sor,
+            Self::Wizard(FilterState::Positive) => spell.wiz,
+            Self::Cleric(FilterState::Positive) => spell.cleric,
+            Self::Druid(FilterState::Positive) => spell.druid,
+            Self::Ranger(FilterState::Positive) => spell.ranger,
+            Self::Bard(FilterState::Positive) => spell.bard,
+            Self::Paladin(FilterState::Positive) => spell.paladin,
+            Self::Alchemist(FilterState::Positive) => spell.alchemist,
+            Self::Summoner(FilterState::Positive) => spell.summoner,
+            Self::Witch(FilterState::Positive) => spell.witch,
+            Self::Inquisitor(FilterState::Positive) => spell.inquisitor,
+            Self::Oracle(FilterState::Positive) => spell.oracle,
+            Self::Antipaladin(FilterState::Positive) => spell.antipaladin,
+            Self::Magus(FilterState::Positive) => spell.magus,
+            Self::Adept(FilterState::Positive) => spell.adept,
+            Self::Bloodrager(FilterState::Positive) => spell.bloodrager,
+            Self::Shaman(FilterState::Positive) => spell.shaman,
+            Self::Psychic(FilterState::Positive) => spell.psychic,
+            Self::Medium(FilterState::Positive) => spell.medium,
+            Self::Mesmerist(FilterState::Positive) => spell.mesmerist,
+            Self::Occultist(FilterState::Positive) => spell.occultist,
+            Self::Spiritualist(FilterState::Positive) => spell.spiritualist,
+            Self::Skald(FilterState::Positive) => spell.skald,
+            Self::Investigator(FilterState::Positive) => spell.investigator,
+            Self::Hunter(FilterState::Positive) => spell.hunter,
+            Self::UncSummoner(FilterState::Positive) => spell.summoner_unchained,
+            _ => None,
         }
     }
 
     fn get_all() -> Vec<Self> {
         [
-            Self::SpellLikeAbility,
-            Self::Sorcerer,
-            Self::Wizard,
-            Self::Cleric,
-            Self::Druid,
-            Self::Ranger,
-            Self::Bard,
-            Self::Paladin,
-            Self::Alchemist,
-            Self::Summoner,
-            Self::Witch,
-            Self::Inquisitor,
-            Self::Oracle,
-            Self::Antipaladin,
-            Self::Magus,
-            Self::Adept,
-            Self::Bloodrager,
-            Self::Shaman,
-            Self::Psychic,
-            Self::Medium,
-            Self::Mesmerist,
-            Self::Occultist,
-            Self::Spiritualist,
-            Self::Skald,
-            Self::Investigator,
-            Self::Hunter,
-            Self::UncSummoner,
+            Self::Sorcerer(FilterState::None),
+            Self::Wizard(FilterState::None),
+            Self::Cleric(FilterState::None),
+            Self::Druid(FilterState::None),
+            Self::Ranger(FilterState::None),
+            Self::Bard(FilterState::None),
+            Self::Paladin(FilterState::None),
+            Self::Alchemist(FilterState::None),
+            Self::Summoner(FilterState::None),
+            Self::Witch(FilterState::None),
+            Self::Inquisitor(FilterState::None),
+            Self::Oracle(FilterState::None),
+            Self::Antipaladin(FilterState::None),
+            Self::Magus(FilterState::None),
+            Self::Adept(FilterState::None),
+            Self::Bloodrager(FilterState::None),
+            Self::Shaman(FilterState::None),
+            Self::Psychic(FilterState::None),
+            Self::Medium(FilterState::None),
+            Self::Mesmerist(FilterState::None),
+            Self::Occultist(FilterState::None),
+            Self::Spiritualist(FilterState::None),
+            Self::Skald(FilterState::None),
+            Self::Investigator(FilterState::None),
+            Self::Hunter(FilterState::None),
+            Self::UncSummoner(FilterState::None),
         ]
         .into()
+    }
+
+    fn get_contained(&self) -> &FilterState {
+        match self {
+            ClassType::Sorcerer(filter_state) => filter_state,
+            ClassType::Wizard(filter_state) => filter_state,
+            ClassType::Cleric(filter_state) => filter_state,
+            ClassType::Druid(filter_state) => filter_state,
+            ClassType::Ranger(filter_state) => filter_state,
+            ClassType::Bard(filter_state) => filter_state,
+            ClassType::Paladin(filter_state) => filter_state,
+            ClassType::Alchemist(filter_state) => filter_state,
+            ClassType::Summoner(filter_state) => filter_state,
+            ClassType::Witch(filter_state) => filter_state,
+            ClassType::Inquisitor(filter_state) => filter_state,
+            ClassType::Oracle(filter_state) => filter_state,
+            ClassType::Antipaladin(filter_state) => filter_state,
+            ClassType::Magus(filter_state) => filter_state,
+            ClassType::Adept(filter_state) => filter_state,
+            ClassType::Bloodrager(filter_state) => filter_state,
+            ClassType::Shaman(filter_state) => filter_state,
+            ClassType::Psychic(filter_state) => filter_state,
+            ClassType::Medium(filter_state) => filter_state,
+            ClassType::Mesmerist(filter_state) => filter_state,
+            ClassType::Occultist(filter_state) => filter_state,
+            ClassType::Spiritualist(filter_state) => filter_state,
+            ClassType::Skald(filter_state) => filter_state,
+            ClassType::Investigator(filter_state) => filter_state,
+            ClassType::Hunter(filter_state) => filter_state,
+            ClassType::UncSummoner(filter_state) => filter_state,
+        }
+    }
+
+    pub fn n(&self) -> Self {
+        match self {
+            ClassType::Sorcerer(filter_state) => ClassType::Sorcerer(filter_state.n()),
+            ClassType::Wizard(filter_state) => ClassType::Wizard(filter_state.n()),
+            ClassType::Cleric(filter_state) => ClassType::Cleric(filter_state.n()),
+            ClassType::Druid(filter_state) => ClassType::Druid(filter_state.n()),
+            ClassType::Ranger(filter_state) => ClassType::Ranger(filter_state.n()),
+            ClassType::Bard(filter_state) => ClassType::Bard(filter_state.n()),
+            ClassType::Paladin(filter_state) => ClassType::Paladin(filter_state.n()),
+            ClassType::Alchemist(filter_state) => ClassType::Alchemist(filter_state.n()),
+            ClassType::Summoner(filter_state) => ClassType::Summoner(filter_state.n()),
+            ClassType::Witch(filter_state) => ClassType::Witch(filter_state.n()),
+            ClassType::Inquisitor(filter_state) => ClassType::Inquisitor(filter_state.n()),
+            ClassType::Oracle(filter_state) => ClassType::Oracle(filter_state.n()),
+            ClassType::Antipaladin(filter_state) => ClassType::Antipaladin(filter_state.n()),
+            ClassType::Magus(filter_state) => ClassType::Magus(filter_state.n()),
+            ClassType::Adept(filter_state) => ClassType::Adept(filter_state.n()),
+            ClassType::Bloodrager(filter_state) => ClassType::Bloodrager(filter_state.n()),
+            ClassType::Shaman(filter_state) => ClassType::Shaman(filter_state.n()),
+            ClassType::Psychic(filter_state) => ClassType::Psychic(filter_state.n()),
+            ClassType::Medium(filter_state) => ClassType::Medium(filter_state.n()),
+            ClassType::Mesmerist(filter_state) => ClassType::Mesmerist(filter_state.n()),
+            ClassType::Occultist(filter_state) => ClassType::Occultist(filter_state.n()),
+            ClassType::Spiritualist(filter_state) => ClassType::Spiritualist(filter_state.n()),
+            ClassType::Skald(filter_state) => ClassType::Skald(filter_state.n()),
+            ClassType::Investigator(filter_state) => ClassType::Investigator(filter_state.n()),
+            ClassType::Hunter(filter_state) => ClassType::Hunter(filter_state.n()),
+            ClassType::UncSummoner(filter_state) => ClassType::UncSummoner(filter_state.n()),
+        }
+    }
+
+    pub fn p(&self) -> Self {
+        match self {
+            ClassType::Sorcerer(filter_state) => ClassType::Sorcerer(filter_state.p()),
+            ClassType::Wizard(filter_state) => ClassType::Wizard(filter_state.p()),
+            ClassType::Cleric(filter_state) => ClassType::Cleric(filter_state.p()),
+            ClassType::Druid(filter_state) => ClassType::Druid(filter_state.p()),
+            ClassType::Ranger(filter_state) => ClassType::Ranger(filter_state.p()),
+            ClassType::Bard(filter_state) => ClassType::Bard(filter_state.p()),
+            ClassType::Paladin(filter_state) => ClassType::Paladin(filter_state.p()),
+            ClassType::Alchemist(filter_state) => ClassType::Alchemist(filter_state.p()),
+            ClassType::Summoner(filter_state) => ClassType::Summoner(filter_state.p()),
+            ClassType::Witch(filter_state) => ClassType::Witch(filter_state.p()),
+            ClassType::Inquisitor(filter_state) => ClassType::Inquisitor(filter_state.p()),
+            ClassType::Oracle(filter_state) => ClassType::Oracle(filter_state.p()),
+            ClassType::Antipaladin(filter_state) => ClassType::Antipaladin(filter_state.p()),
+            ClassType::Magus(filter_state) => ClassType::Magus(filter_state.p()),
+            ClassType::Adept(filter_state) => ClassType::Adept(filter_state.p()),
+            ClassType::Bloodrager(filter_state) => ClassType::Bloodrager(filter_state.p()),
+            ClassType::Shaman(filter_state) => ClassType::Shaman(filter_state.p()),
+            ClassType::Psychic(filter_state) => ClassType::Psychic(filter_state.p()),
+            ClassType::Medium(filter_state) => ClassType::Medium(filter_state.p()),
+            ClassType::Mesmerist(filter_state) => ClassType::Mesmerist(filter_state.p()),
+            ClassType::Occultist(filter_state) => ClassType::Occultist(filter_state.p()),
+            ClassType::Spiritualist(filter_state) => ClassType::Spiritualist(filter_state.p()),
+            ClassType::Skald(filter_state) => ClassType::Skald(filter_state.p()),
+            ClassType::Investigator(filter_state) => ClassType::Investigator(filter_state.p()),
+            ClassType::Hunter(filter_state) => ClassType::Hunter(filter_state.p()),
+            ClassType::UncSummoner(filter_state) => ClassType::UncSummoner(filter_state.p()),
+        }
+    }
+
+    fn test_cls(&self, spell: &Spell) -> bool {
+        match self {
+            ClassType::Sorcerer(FilterState::Positive) => spell.sor.is_some(),
+            ClassType::Wizard(FilterState::Positive) => spell.wiz.is_some(),
+            ClassType::Cleric(FilterState::Positive) => spell.cleric.is_some(),
+            ClassType::Druid(FilterState::Positive) => spell.druid.is_some(),
+            ClassType::Ranger(FilterState::Positive) => spell.ranger.is_some(),
+            ClassType::Bard(FilterState::Positive) => spell.bard.is_some(),
+            ClassType::Paladin(FilterState::Positive) => spell.paladin.is_some(),
+            ClassType::Alchemist(FilterState::Positive) => spell.alchemist.is_some(),
+            ClassType::Summoner(FilterState::Positive) => spell.summoner.is_some(),
+            ClassType::Witch(FilterState::Positive) => spell.witch.is_some(),
+            ClassType::Inquisitor(FilterState::Positive) => spell.inquisitor.is_some(),
+            ClassType::Oracle(FilterState::Positive) => spell.oracle.is_some(),
+            ClassType::Antipaladin(FilterState::Positive) => spell.antipaladin.is_some(),
+            ClassType::Magus(FilterState::Positive) => spell.magus.is_some(),
+            ClassType::Adept(FilterState::Positive) => spell.adept.is_some(),
+            ClassType::Bloodrager(FilterState::Positive) => spell.bloodrager.is_some(),
+            ClassType::Shaman(FilterState::Positive) => spell.shaman.is_some(),
+            ClassType::Psychic(FilterState::Positive) => spell.psychic.is_some(),
+            ClassType::Medium(FilterState::Positive) => spell.medium.is_some(),
+            ClassType::Mesmerist(FilterState::Positive) => spell.mesmerist.is_some(),
+            ClassType::Occultist(FilterState::Positive) => spell.occultist.is_some(),
+            ClassType::Spiritualist(FilterState::Positive) => spell.spiritualist.is_some(),
+            ClassType::Skald(FilterState::Positive) => spell.skald.is_some(),
+            ClassType::Investigator(FilterState::Positive) => spell.investigator.is_some(),
+            ClassType::Hunter(FilterState::Positive) => spell.hunter.is_some(),
+            ClassType::UncSummoner(FilterState::Positive) => spell.summoner_unchained.is_some(),
+            ClassType::Sorcerer(FilterState::Negative) => spell.sor.is_none(),
+            ClassType::Wizard(FilterState::Negative) => spell.wiz.is_none(),
+            ClassType::Cleric(FilterState::Negative) => spell.cleric.is_none(),
+            ClassType::Druid(FilterState::Negative) => spell.druid.is_none(),
+            ClassType::Ranger(FilterState::Negative) => spell.ranger.is_none(),
+            ClassType::Bard(FilterState::Negative) => spell.bard.is_none(),
+            ClassType::Paladin(FilterState::Negative) => spell.paladin.is_none(),
+            ClassType::Alchemist(FilterState::Negative) => spell.alchemist.is_none(),
+            ClassType::Summoner(FilterState::Negative) => spell.summoner.is_none(),
+            ClassType::Witch(FilterState::Negative) => spell.witch.is_none(),
+            ClassType::Inquisitor(FilterState::Negative) => spell.inquisitor.is_none(),
+            ClassType::Oracle(FilterState::Negative) => spell.oracle.is_none(),
+            ClassType::Antipaladin(FilterState::Negative) => spell.antipaladin.is_none(),
+            ClassType::Magus(FilterState::Negative) => spell.magus.is_none(),
+            ClassType::Adept(FilterState::Negative) => spell.adept.is_none(),
+            ClassType::Bloodrager(FilterState::Negative) => spell.bloodrager.is_none(),
+            ClassType::Shaman(FilterState::Negative) => spell.shaman.is_none(),
+            ClassType::Psychic(FilterState::Negative) => spell.psychic.is_none(),
+            ClassType::Medium(FilterState::Negative) => spell.medium.is_none(),
+            ClassType::Mesmerist(FilterState::Negative) => spell.mesmerist.is_none(),
+            ClassType::Occultist(FilterState::Negative) => spell.occultist.is_none(),
+            ClassType::Spiritualist(FilterState::Negative) => spell.spiritualist.is_none(),
+            ClassType::Skald(FilterState::Negative) => spell.skald.is_none(),
+            ClassType::Investigator(FilterState::Negative) => spell.investigator.is_none(),
+            ClassType::Hunter(FilterState::Negative) => spell.hunter.is_none(),
+            ClassType::UncSummoner(FilterState::Negative) => spell.summoner_unchained.is_none(),
+            _ => false,
+        }
+    }
+
+    fn create_btn(&self, ui: &mut egui::Ui) -> Self {
+        let btn = egui::Button::new(self.title());
+        let resp = ui.add(if self.some_filter() {
+            btn.fill(self.get_contained().get_color())
+        } else {
+            btn
+        });
+
+        if resp.clicked() {
+            self.n()
+        } else if resp.secondary_clicked() {
+            self.p()
+        } else {
+            self.clone()
+        }
     }
 }
 
@@ -507,6 +680,49 @@ pub struct Spell {
     pub summoner_unchained: Option<u32>,
 }
 
+impl Spell {
+    fn filter_map_level(
+        &self,
+        class_sel_or: bool,
+        classes: &[ClassType],
+    ) -> Option<(&Self, String)> {
+        let res = if class_sel_or {
+            let mut it = classes.iter().filter(|f| f.some_filter());
+            if let Some(ff) = it.next() {
+                ff.test_cls(self) || it.any(|f| f.test_cls(self))
+            } else {
+                true
+            }
+        } else {
+            classes
+                .iter()
+                .filter(|f| f.some_filter())
+                .all(|f| f.test_cls(self))
+        };
+        let lvls: Vec<String> = classes
+            .iter()
+            .filter(|c| *c.get_contained() == FilterState::Positive)
+            .map(|c| match c.get_value(self) {
+                Some(u) => u.to_string(),
+                None => "-".to_string(),
+            })
+            .collect();
+        let rv = if lvls.is_empty() {
+            format!("{}", self.sla_level)
+        } else if lvls.contains(&"/".to_string()) {
+            format!("{}({})", self.sla_level, lvls.join("/"))
+        } else {
+            lvls.join("/")
+        };
+
+        if res {
+            Some((self, rv))
+        } else {
+            None
+        }
+    }
+}
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -579,7 +795,9 @@ impl eframe::App for SpellSearchApp {
                 };
 
                 if self.filter_window_active {
-                    self.spell_table.filter_window.filter_ui(ctx);
+                    self.spell_table
+                        .filter_window
+                        .filter_ui(ctx, &mut self.filter_window_active);
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -598,7 +816,7 @@ struct SpellTable {
     value: Vec<Spell>,
 
     shown_columns: Vec<(ColType, RowOrder)>,
-    selected_class: ClassType,
+
     filter_string: String,
     selected_spell: Option<Spell>,
     filter_window: FilterWindow,
@@ -618,7 +836,6 @@ impl SpellTable {
         Self {
             value: load_spell_table(),
             shown_columns,
-            selected_class: ClassType::SpellLikeAbility,
             filter_string: String::new(),
             selected_spell: None,
             filter_window: FilterWindow::new(),
@@ -628,17 +845,6 @@ impl SpellTable {
     fn table_ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and BottomPanel's
-            egui::ComboBox::from_label("Class")
-                .selected_text(self.selected_class.title())
-                .show_ui(ui, |ui| {
-                    for e in ClassType::get_all() {
-                        let title = e.title();
-                        ui.selectable_value(&mut self.selected_class, e, title);
-                    }
-                });
-
-            ui.separator();
-
             let s: &mut egui::Style = ui.style_mut();
             s.wrap_mode = Some(egui::TextWrapMode::Extend);
             TableBuilder::new(ui)
@@ -680,6 +886,19 @@ impl SpellTable {
                         };
                         let resp = ui.add(btn);
                         ui.heading(col.title());
+                        match col {
+                            ColType::Name(_) => {
+                                ui.menu_button("🔎", |ui| {
+                                    ui.text_edit_singleline(&mut self.filter_window.name)
+                                });
+                            }
+                            ColType::Description(_) => {
+                                ui.menu_button("🔎", |ui| {
+                                    ui.text_edit_singleline(&mut self.filter_window.description)
+                                });
+                            }
+                            _ => {}
+                        }
 
                         if clicked != ColType::None {
                             *order = RowOrder::None;
@@ -707,25 +926,25 @@ impl SpellTable {
     }
 
     fn render_body(&mut self, body: egui_extras::TableBody<'_>) {
-        let mut stuff: Vec<(&Spell, u32)> = self
+        let mut stuff: Vec<(&Spell, String)> = self
             .value
             .iter()
-            .filter(|s| self.filter_window.test(s))
             .filter_map(|spell| {
-                self.selected_class
-                    .get_value(spell)
-                    .map(|level| (spell, level))
+                spell.filter_map_level(
+                    self.filter_window.class_or,
+                    &self.filter_window.selected_classes,
+                )
             })
-            .filter(|(_spell, sl)| self.filter_window.test_sl(format!("{}", sl)))
+            .filter(|(spell, level)| self.filter_window.test(spell, level))
             .collect();
         for (col, ordering) in &self.shown_columns {
             stuff.sort_by(|(spell1, level1), (spell2, level2)| {
-                ordering.compare(col, spell1, spell2, *level1, *level2)
+                ordering.compare(col, spell1, spell2, level1, level2)
             });
         }
 
         body.rows(15.0, stuff.len(), |mut row: TableRow<'_, '_>| {
-            let (spell, level) = stuff[row.index()];
+            let (spell, level) = &stuff[row.index()];
             //row.set_selected(selected);
             for (col, _) in &self.shown_columns {
                 if col.get_bool() {
@@ -743,7 +962,7 @@ impl SpellTable {
                         }
                         ColType::Level(_) => {
                             row.col(|ui| {
-                                ui.add(egui::Label::new(format!("{}", level)).selectable(false));
+                                ui.add(egui::Label::new(level).selectable(false));
                             });
                         }
                         ColType::Subschools(_) => {
@@ -1026,6 +1245,8 @@ struct FilterWindow {
     spell_res_or: bool,
     description: String,
     source: String,
+    selected_classes: Vec<ClassType>,
+    class_or: bool,
 }
 
 impl Default for FilterWindow {
@@ -1055,6 +1276,8 @@ impl Default for FilterWindow {
             spell_res_or: false,
             description: String::new(),
             source: String::new(),
+            selected_classes: ClassType::get_all(),
+            class_or: false,
         }
     }
 }
@@ -1064,100 +1287,128 @@ impl FilterWindow {
         Default::default()
     }
 
-    fn filter_ui(&mut self, ctx: &egui::Context) {
-        egui::containers::Window::new("Filters").show(ctx, |ui| {
-            ui.label("Name");
-            ui.horizontal(|ui| {
-                ui.text_edit_singleline(&mut self.name);
+    fn filter_ui(&mut self, ctx: &egui::Context, filter_open: &mut bool) {
+        egui::containers::Window::new("Filters")
+            .open(filter_open)
+            .show(ctx, |ui| {
+                ui.label("Name");
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut self.name);
+                });
+                ui.separator();
+                ui.label("Description");
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut self.description);
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Class");
+                    ui.add(toggle(&mut self.class_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for c in &mut self.selected_classes {
+                        *c = c.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Spellschool");
+                    ui.add(toggle(&mut self.school_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for school in &mut self.school {
+                        *school = school.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Spell Level");
+                    ui.add(toggle(&mut self.level_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for level in &mut self.level {
+                        *level = level.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Components");
+                    ui.add(toggle(&mut self.components_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for comp in &mut self.components {
+                        *comp = comp.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Subschool");
+                    ui.add(toggle(&mut self.subschool_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for subschool in &mut self.subschool {
+                        *subschool = subschool.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Domain");
+                    ui.add(toggle(&mut self.domain_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for domain in &mut self.domain {
+                        *domain = domain.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Save");
+                    ui.add(toggle(&mut self.save_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for save in &mut self.save {
+                        *save = save.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Spell Resistance");
+                    ui.add(toggle(&mut self.spell_res_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for spell_res in &mut self.spell_res {
+                        *spell_res = spell_res.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Descriptor");
+                    ui.add(toggle(&mut self.descriptor_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for desc in &mut self.descriptor {
+                        *desc = desc.create_btn(ui);
+                    }
+                });
             });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Spellschool");
-                ui.add(toggle(&mut self.school_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for school in &mut self.school {
-                    *school = school.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Spell Level");
-                ui.add(toggle(&mut self.level_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for level in &mut self.level {
-                    *level = level.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Components");
-                ui.add(toggle(&mut self.components_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for comp in &mut self.components {
-                    *comp = comp.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Subschool");
-                ui.add(toggle(&mut self.subschool_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for subschool in &mut self.subschool {
-                    *subschool = subschool.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Domain");
-                ui.add(toggle(&mut self.domain_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for domain in &mut self.domain {
-                    *domain = domain.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Save");
-                ui.add(toggle(&mut self.save_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for save in &mut self.save {
-                    *save = save.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Spell Resistance");
-                ui.add(toggle(&mut self.spell_res_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for spell_res in &mut self.spell_res {
-                    *spell_res = spell_res.create_btn(ui);
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Descriptor");
-                ui.add(toggle(&mut self.descriptor_or));
-            });
-            ui.horizontal_wrapped(|ui| {
-                for desc in &mut self.descriptor {
-                    *desc = desc.create_btn(ui);
-                }
-            });
-        });
     }
 
-    fn test(&self, spell: &Spell) -> bool {
+    fn test(&self, spell: &Spell, level: &str) -> bool {
         spell
             .name
             .to_lowercase()
             .contains(&self.name.to_lowercase())
+            && spell.description.contains(&self.description)
+            && if self.level_or {
+                let mut it = self.level.iter().filter(|f| f.some_filter());
+                if let Some(ff) = it.next() {
+                    ff.test(level) || it.any(|f| f.test(level))
+                } else {
+                    true
+                }
+            } else {
+                self.level.iter().all(|f| f.test(level))
+            }
             && if self.school_or {
                 let mut it = self.school.iter().filter(|f| f.some_filter());
                 if let Some(ff) = it.next() {
@@ -1230,18 +1481,5 @@ impl FilterWindow {
             } else {
                 self.descriptor.iter().all(|f| f.test(&spell.descriptors))
             }
-    }
-
-    fn test_sl(&self, spell_level: String) -> bool {
-        if self.level_or {
-            let mut it = self.level.iter().filter(|f| f.some_filter());
-            if let Some(ff) = it.next() {
-                ff.test(&spell_level) || it.any(|f| f.test(&spell_level))
-            } else {
-                true
-            }
-        } else {
-            self.level.iter().all(|f| f.test(&spell_level))
-        }
     }
 }

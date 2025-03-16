@@ -1,7 +1,7 @@
 use filter_derive::FilterReprMacro;
 use filter_repr::FilterRepr;
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum FilterState {
     None,
     Positive,

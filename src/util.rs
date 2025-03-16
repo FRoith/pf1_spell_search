@@ -1,4 +1,4 @@
-fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+fn toggle_ui(ui: &mut egui::Ui, on: &mut bool, text_off: &str, text_on: &str) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     if response.clicked() || response.secondary_clicked() {
@@ -25,7 +25,7 @@ fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         ui.painter().text(
             center,
             egui::Align2::CENTER_CENTER,
-            if *on { "OR" } else { "AND" },
+            if *on { text_off } else { text_on },
             egui::FontId::monospace(12.0),
             visuals.text_color(),
         );
@@ -35,5 +35,5 @@ fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 }
 
 pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
-    move |ui: &mut egui::Ui| toggle_ui(ui, on)
+    move |ui: &mut egui::Ui| toggle_ui(ui, on, "OR", "AND")
 }
