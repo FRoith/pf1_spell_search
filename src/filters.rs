@@ -201,3 +201,12 @@ pub enum SpellDescriptor {
     Sonic(FilterState),
     Water(FilterState),
 }
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+pub enum SpellRange {
+    Personal(FilterState),
+    Touch(FilterState),
+    Close(FilterState),
+    Medium(FilterState),
+    Long(FilterState),
+}

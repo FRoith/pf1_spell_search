@@ -1,7 +1,9 @@
+use convert_case::{Case, Casing};
 use egui_extras::{Column, TableBuilder, TableRow};
 use filter_derive::FilterReprMacro;
 use filter_repr::FilterRepr;
 
+use regex::Regex;
 use serde::{
     de::{self, Unexpected},
     Deserialize, Deserializer,
@@ -9,8 +11,8 @@ use serde::{
 
 use crate::{
     filters::{
-        Domain, FilterState, Level, Save, SpellComponent, SpellDescriptor, SpellResistance,
-        Spellschool, Subschool,
+        Domain, FilterState, Level, Save, SpellComponent, SpellDescriptor, SpellRange,
+        SpellResistance, Spellschool, Subschool,
     },
     util::toggle,
 };
@@ -913,6 +915,8 @@ impl SpellTable {
                         }
                     });
                 });
+            } else if clicked != ColType::None {
+                *order = RowOrder::None;
             }
         }
         if clicked != ColType::None {
@@ -1103,6 +1107,27 @@ impl SpellTable {
     fn render_spell(ui: &mut egui::Ui, spell: &Spell) {
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(&spell.name).size(30.0));
+            ui.add(
+                egui::Hyperlink::from_label_and_url(
+                    egui::RichText::new("(d20PFsrd)").size(10.0),
+                    format!(
+                        "https://www.d20pfsrd.com/magic/all-spells/{}/{}/",
+                        spell.name.to_lowercase().chars().next().unwrap(),
+                        spell.name.to_case(Case::Kebab),
+                    ),
+                )
+                .open_in_new_tab(true),
+            );
+            ui.add(
+                egui::Hyperlink::from_label_and_url(
+                    egui::RichText::new("(Archives)").size(10.0),
+                    format!(
+                        "https://aonprd.com/SpellDisplay.aspx?ItemName={}",
+                        spell.name.to_lowercase(),
+                    ),
+                )
+                .open_in_new_tab(true),
+            );
         });
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("School").strong().size(12.0));
@@ -1234,7 +1259,8 @@ struct FilterWindow {
     descriptor_or: bool,
     components: Vec<SpellComponent>,
     components_or: bool,
-    range: String,
+    range: Vec<SpellRange>,
+    range_or: bool,
     area: String,
     effect: String,
     targets: String,
@@ -1244,6 +1270,9 @@ struct FilterWindow {
     spell_res: Vec<SpellResistance>,
     spell_res_or: bool,
     description: String,
+    prev_description: String,
+    #[serde(skip)]
+    keywords: Vec<Result<Regex, regex::Error>>,
     source: String,
     selected_classes: Vec<ClassType>,
     class_or: bool,
@@ -1265,7 +1294,8 @@ impl Default for FilterWindow {
             descriptor_or: false,
             components: SpellComponent::get_all(),
             components_or: false,
-            range: String::new(),
+            range: SpellRange::get_all(),
+            range_or: false,
             area: String::new(),
             effect: String::new(),
             targets: String::new(),
@@ -1275,6 +1305,8 @@ impl Default for FilterWindow {
             spell_res: SpellResistance::get_all(),
             spell_res_or: false,
             description: String::new(),
+            prev_description: String::new(),
+            keywords: Vec::new(),
             source: String::new(),
             selected_classes: ClassType::get_all(),
             class_or: false,
@@ -1299,6 +1331,15 @@ impl FilterWindow {
                 ui.label("Description");
                 ui.horizontal(|ui| {
                     ui.text_edit_singleline(&mut self.description);
+                    if self.description != self.prev_description {
+                        self.keywords = self
+                            .description
+                            .to_lowercase()
+                            .split(",")
+                            .map(|x| Regex::new(&format!("\\b{}\\b", x)))
+                            .collect();
+                    }
+                    self.prev_description = self.description.clone();
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
@@ -1338,6 +1379,16 @@ impl FilterWindow {
                 ui.horizontal_wrapped(|ui| {
                     for comp in &mut self.components {
                         *comp = comp.create_btn(ui);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Range");
+                    ui.add(toggle(&mut self.range_or));
+                });
+                ui.horizontal_wrapped(|ui| {
+                    for range in &mut self.range {
+                        *range = range.create_btn(ui);
                     }
                 });
                 ui.separator();
@@ -1398,7 +1449,7 @@ impl FilterWindow {
             .name
             .to_lowercase()
             .contains(&self.name.to_lowercase())
-            && spell.description.contains(&self.description)
+            && keyword_match(&spell.description.to_lowercase(), &self.keywords)
             && if self.level_or {
                 let mut it = self.level.iter().filter(|f| f.some_filter());
                 if let Some(ff) = it.next() {
@@ -1481,5 +1532,27 @@ impl FilterWindow {
             } else {
                 self.descriptor.iter().all(|f| f.test(&spell.descriptors))
             }
+            && if self.range_or {
+                let mut it = self.range.iter().filter(|f| f.some_filter());
+                if let Some(ff) = it.next() {
+                    ff.test(&spell.range) || it.any(|f| f.test(&spell.range))
+                } else {
+                    true
+                }
+            } else {
+                self.range.iter().all(|f| f.test(&spell.range))
+            }
     }
+}
+
+fn keyword_match(haystack: &str, keywords: &Vec<Result<Regex, regex::Error>>) -> bool {
+    let mut ret = true;
+    for word in keywords {
+        ret &= if let Ok(re) = word {
+            re.is_match(haystack)
+        } else {
+            false
+        };
+    }
+    ret
 }
