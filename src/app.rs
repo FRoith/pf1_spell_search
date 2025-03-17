@@ -808,6 +808,20 @@ impl eframe::App for SpellSearchApp {
 
         self.spell_table.selected_ui(ctx);
         self.spell_table.table_ui(ctx);
+        if self.spell_table.filter_window.description
+            != self.spell_table.filter_window.prev_description
+        {
+            self.spell_table.filter_window.keywords = self
+                .spell_table
+                .filter_window
+                .description
+                .to_lowercase()
+                .split(",")
+                .map(|x| Regex::new(&format!("\\b{}\\b", x)))
+                .collect();
+        }
+        self.spell_table.filter_window.prev_description =
+            self.spell_table.filter_window.description.clone();
     }
 }
 
@@ -1331,15 +1345,6 @@ impl FilterWindow {
                 ui.label("Description");
                 ui.horizontal(|ui| {
                     ui.text_edit_singleline(&mut self.description);
-                    if self.description != self.prev_description {
-                        self.keywords = self
-                            .description
-                            .to_lowercase()
-                            .split(",")
-                            .map(|x| Regex::new(&format!("\\b{}\\b", x)))
-                            .collect();
-                    }
-                    self.prev_description = self.description.clone();
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
