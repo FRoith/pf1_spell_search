@@ -1,46 +1,5 @@
 use filter_derive::FilterReprMacro;
-use filter_repr::FilterRepr;
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum FilterState {
-    None,
-    Positive,
-    Negative,
-}
-
-impl FilterState {
-    pub fn get_color(&self) -> egui::Color32 {
-        match self {
-            FilterState::None => egui::Color32::TRANSPARENT,
-            FilterState::Positive => egui::Color32::from_hex("#008800").unwrap(),
-            FilterState::Negative => egui::Color32::from_hex("#880000").unwrap(),
-        }
-    }
-
-    pub fn n(&self) -> Self {
-        match self {
-            FilterState::None => FilterState::Positive,
-            FilterState::Positive => FilterState::Negative,
-            FilterState::Negative => FilterState::None,
-        }
-    }
-
-    pub fn p(&self) -> Self {
-        match self {
-            FilterState::None => FilterState::Negative,
-            FilterState::Positive => FilterState::None,
-            FilterState::Negative => FilterState::Positive,
-        }
-    }
-
-    pub fn test(&self, spell: &str, value: &str) -> bool {
-        match self {
-            FilterState::None => true,
-            FilterState::Positive => spell.to_lowercase().contains(&value.to_lowercase()),
-            FilterState::Negative => !spell.to_lowercase().contains(&value.to_lowercase()),
-        }
-    }
-}
+use filter_repr::{FilterRepr, FilterState};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Spellschool {
@@ -153,7 +112,7 @@ pub enum SpellComponent {
 }
 
 impl SpellComponent {
-    pub fn special_test(&self, spell: &crate::app::Spell) -> bool {
+    pub fn special_test(&self, spell: &crate::spell::Spell) -> bool {
         match self {
             Self::Verbal(FilterState::None) => true,
             Self::Somatic(FilterState::None) => true,

@@ -27,9 +27,18 @@ serde = { version = "1.0.219", features = ["derive"] }
 egui_autocomplete = { version = "9.0.0", features = ["serde"] }
 itertools = "0.14.0"
 html2md = "0.2.15"
-egui_commonmark = "0.20.0"
+egui_commonmark = { version = "0.20.0", features = ["macros"] }
 filter_repr = { path = "libs/filter_repr" }
 filter_derive = { path = "libs/filter_derive" }
+lazy_static = "1.5.0"
+
+[build-dependencies]
+egui = "0.31.1"
+csv = "1.3.1"
+serde = { version = "1.0.219", features = ["derive"] }
+filter_repr = { path = "libs/filter_repr" }
+filter_derive = { path = "libs/filter_derive" }
+lazy_static = "1.5.0"
 convert_case = "0.8.0"
 regex = "1.11.1"
 
@@ -40,7 +49,7 @@ env_logger = "0.11.7"
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4.50"
-web-sys = "0.3.77"           # to access the DOM (to hide the loading text)
+web-sys = "0.3.77"              # to access the DOM (to hide the loading text)
 
 [profile.release]
 opt-level = 2 # fast and small wasm
