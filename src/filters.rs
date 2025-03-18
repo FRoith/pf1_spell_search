@@ -1,7 +1,7 @@
 use filter_derive::FilterReprMacro;
 use filter_repr::{FilterRepr, FilterState};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Spellschool {
     Abjuration(FilterState),
     Conjuration(FilterState),
@@ -14,7 +14,7 @@ pub enum Spellschool {
     Universal(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Subschool {
     Calling(FilterState),
     Creation(FilterState),
@@ -32,7 +32,7 @@ pub enum Subschool {
     Polymorph(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Level {
     _0(FilterState),
     _1(FilterState),
@@ -46,7 +46,7 @@ pub enum Level {
     _9(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Domain {
     Air(FilterState),
     Animal(FilterState),
@@ -88,7 +88,7 @@ pub enum Domain {
     Weather(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum Save {
     None(FilterState),
     Will(FilterState),
@@ -97,14 +97,14 @@ pub enum Save {
     Text(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum SpellResistance {
     Yes(FilterState),
     No(FilterState),
     Text(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum SpellComponent {
     Verbal(FilterState),
     Somatic(FilterState),
@@ -127,7 +127,7 @@ impl SpellComponent {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum SpellDescriptor {
     Acid(FilterState),
     Air(FilterState),
@@ -161,7 +161,7 @@ pub enum SpellDescriptor {
     Water(FilterState),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FilterReprMacro)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, FilterReprMacro)]
 pub enum SpellRange {
     Personal(FilterState),
     Touch(FilterState),

@@ -1,19 +1,37 @@
-use std::fmt;
+use convert_case::{Case, Casing};
 use std::fs;
 use std::include;
-use std::path::Path;
 
 include!("spell-build.rs");
 
 fn main() {
     let spells = load_spell_table();
-    let mut cont = "";
+    let mut cont = String::new();
     //cont += &format!("pub const ALL_SPELLS: [Spell; {}] = [\n", spells.len());
     //for spell in spells {
     //    cont += &spell.to_string();
     //    cont += ",\n";
     //}
     //cont += "];\n";
+    cont += "use std::collections::HashMap;
+    lazy_static! {
+    pub static ref BONUS_INFO: HashMap<u32, &'static SpellMeta> = {
+        let mut m = HashMap::new();\n";
+    for spell in spells {
+        let d20pfsrd = format!(
+            "https://www.d20pfsrd.com/magic/all-spells/{}/{}/",
+            spell.name.to_lowercase().chars().next().unwrap(),
+            spell.name.to_case(Case::Kebab),
+        );
+        let archives = format!(
+            "https://aonprd.com/SpellDisplay.aspx?ItemName={}",
+            spell.name.to_lowercase(),
+        );
+        let description_md =
+            &html2md::parse_html(&spell.description_formatted).replace("\n ", "\n\n");
+        cont += &format!("        m.insert({}_u32, &SpellMeta{{d20pfsrd: {:?}, archives: {:?}, description_md: {:?}}});\n", spell.id, d20pfsrd, archives, description_md);
+    }
+    cont += "        m\n};\n}\n";
 
     fs::write("spell-generated.rs", cont).unwrap();
 

@@ -4,8 +4,6 @@ use std::fmt::Formatter;
 use filter_derive::FilterReprMacro;
 use filter_repr::{FilterRepr, FilterState};
 
-use serde;
-
 fn bool_from_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -527,4 +525,10 @@ impl ClassType {
             self.clone()
         }
     }
+}
+
+pub struct SpellMeta {
+    pub d20pfsrd: &'static str,
+    pub archives: &'static str,
+    pub description_md: &'static str,
 }

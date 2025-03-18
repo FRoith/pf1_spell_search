@@ -1,4 +1,4 @@
-use convert_case::{Case, Casing};
+use egui::RichText;
 use egui_extras::{Column, TableBuilder, TableRow};
 use filter_repr::FilterRepr;
 
@@ -6,11 +6,12 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
 use crate::{
+    filter_row,
     filters::{
-        Domain, FilterState, Level, Save, SpellComponent, SpellDescriptor, SpellRange,
-        SpellResistance, Spellschool, Subschool,
+        Domain, Level, Save, SpellComponent, SpellDescriptor, SpellRange, SpellResistance,
+        Spellschool, Subschool,
     },
-    spell::{ClassType, Spell},
+    spell::{ClassType, Spell, SpellMeta, BONUS_INFO},
     util::toggle,
 };
 
@@ -289,6 +290,18 @@ impl eframe::App for SpellSearchApp {
             });
         });
 
+        if self.spell_table.shown_value.is_none() {
+            self.spell_table.filter_window.keywords = self
+                .spell_table
+                .filter_window
+                .description
+                .to_lowercase()
+                .split(",")
+                .map(|x| Regex::new(&format!("\\b{}\\b", x)))
+                .collect();
+            self.spell_table.filter_window.filters_changed = true;
+        }
+
         self.spell_table.selected_ui(ctx);
         self.spell_table.table_ui(ctx);
         if self.spell_table.filter_window.description
@@ -302,9 +315,14 @@ impl eframe::App for SpellSearchApp {
                 .split(",")
                 .map(|x| Regex::new(&format!("\\b{}\\b", x)))
                 .collect();
+            self.spell_table.filter_window.filters_changed = true;
         }
         self.spell_table.filter_window.prev_description =
             self.spell_table.filter_window.description.clone();
+
+        if self.spell_table.update_filters() {
+            ctx.request_repaint();
+        }
     }
 }
 
@@ -312,7 +330,11 @@ impl eframe::App for SpellSearchApp {
 struct SpellTable {
     #[serde(skip, default = "load_spell_table")]
     // This how you opt-out of serialization of a field
-    value: Vec<Spell>,
+    value: &'static Vec<Spell>,
+
+    #[serde(skip, default)]
+    // This how you opt-out of serialization of a field
+    shown_value: Option<Vec<(&'static Spell, String)>>,
 
     shown_columns: Vec<(ColType, RowOrder)>,
 
@@ -321,12 +343,8 @@ struct SpellTable {
     filter_window: FilterWindow,
 }
 
-fn load_spell_table() -> Vec<Spell> {
-    let data = include_str!("../db/spell_full - Updated 31Mar2020.csv");
-    let mut reader = csv::ReaderBuilder::new()
-        .terminator(csv::Terminator::CRLF)
-        .from_reader(data.as_bytes());
-    reader.deserialize().filter_map(|x| x.ok()).collect()
+fn load_spell_table() -> &'static Vec<Spell> {
+    &crate::spell::ALL_SPELLS
 }
 
 impl SpellTable {
@@ -334,6 +352,7 @@ impl SpellTable {
         let shown_columns: Vec<(ColType, RowOrder)> = ColType::get_all();
         Self {
             value: load_spell_table(),
+            shown_value: None,
             shown_columns,
             filter_string: String::new(),
             selected_spell: None,
@@ -373,64 +392,134 @@ impl SpellTable {
         for (col, order) in &mut self.shown_columns {
             if col.get_bool() {
                 header.col(|ui| {
-                    ui.horizontal(|ui| {
-                        let btn = match order {
-                            RowOrder::None => egui::Button::new("⏵"),
-                            RowOrder::Ascending => {
-                                egui::Button::new("⏷").fill(ui.visuals().selection.bg_fill)
-                            }
-                            RowOrder::Descending => {
-                                egui::Button::new("⏶").fill(ui.visuals().selection.bg_fill)
-                            }
-                        };
-                        let resp = ui.add(btn);
-                        ui.heading(col.title()).context_menu(|ui| match col {
-                            ColType::None => {}
-                            ColType::Name(_) => {
-                                ui.text_edit_singleline(&mut self.filter_window.name);
-                            }
-                            ColType::School(_) => todo!(),
-                            ColType::Level(_) => todo!(),
-                            ColType::Subschools(_) => todo!(),
-                            ColType::Domain(_) => todo!(),
-                            ColType::Descriptors(_) => todo!(),
-                            ColType::Components(_) => todo!(),
-                            ColType::Range(_) => todo!(),
-                            ColType::Area(_) => todo!(),
-                            ColType::Effect(_) => todo!(),
-                            ColType::Targets(_) => todo!(),
-                            ColType::Duration(_) => todo!(),
-                            ColType::SavingThrow(_) => todo!(),
-                            ColType::SpellResistance(_) => todo!(),
-                            ColType::Description(_) => todo!(),
-                            ColType::Source(_) => todo!(),
-                        });
-                        match col {
-                            ColType::Name(_) => {
-                                ui.menu_button("🔎", |ui| {
-                                    ui.text_edit_singleline(&mut self.filter_window.name)
-                                });
-                            }
-                            ColType::Description(_) => {
-                                ui.menu_button("🔎", |ui| {
-                                    ui.text_edit_singleline(&mut self.filter_window.description)
-                                });
-                            }
-                            _ => {}
-                        }
+                    let resp = ui
+                        .horizontal(|ui| {
+                            let btn = match order {
+                                RowOrder::None => egui::Button::new("⏵"),
+                                RowOrder::Ascending => {
+                                    egui::Button::new("⏷").fill(ui.visuals().selection.bg_fill)
+                                }
+                                RowOrder::Descending => {
+                                    egui::Button::new("⏶").fill(ui.visuals().selection.bg_fill)
+                                }
+                            };
+                            let resp = ui.add(btn);
+                            ui.add(
+                                egui::Label::new(RichText::new(col.title()).heading())
+                                    .selectable(false),
+                            );
 
-                        if clicked != ColType::None {
-                            *order = RowOrder::None;
+                            if clicked != ColType::None {
+                                *order = RowOrder::None;
+                            }
+                            if resp.clicked() {
+                                *order = order.n();
+                                clicked = col.clone();
+                            }
+                            if resp.secondary_clicked() {
+                                *order = order.p();
+                                clicked = col.clone();
+                            }
+                        })
+                        .response;
+                    match col {
+                        ColType::None => {}
+                        ColType::Name(_) => {
+                            resp.context_menu(|ui| {
+                                if ui
+                                    .text_edit_singleline(&mut self.filter_window.name)
+                                    .changed()
+                                {
+                                    self.filter_window.filters_changed = true;
+                                };
+                            });
                         }
-                        if resp.clicked() {
-                            *order = order.n();
-                            clicked = col.clone();
+                        ColType::School(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(
+                                    ui,
+                                    self.filter_window,
+                                    school,
+                                    school_or,
+                                    "Spellschool"
+                                );
+                            });
                         }
-                        if resp.secondary_clicked() {
-                            *order = order.p();
-                            clicked = col.clone();
+                        ColType::Level(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(ui, self.filter_window, level, level_or, "Spell Level");
+                            });
                         }
-                    });
+                        ColType::Subschools(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(
+                                    ui,
+                                    self.filter_window,
+                                    subschool,
+                                    subschool_or,
+                                    "Subschool"
+                                );
+                            });
+                        }
+                        ColType::Domain(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(ui, self.filter_window, domain, domain_or, "Domain");
+                            });
+                        }
+                        ColType::Descriptors(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(
+                                    ui,
+                                    self.filter_window,
+                                    descriptor,
+                                    descriptor_or,
+                                    "Descriptor"
+                                );
+                            });
+                        }
+                        ColType::Components(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(
+                                    ui,
+                                    self.filter_window,
+                                    components,
+                                    components_or,
+                                    "Components"
+                                );
+                            });
+                        }
+                        ColType::Range(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(ui, self.filter_window, range, range_or, "Range");
+                            });
+                        }
+                        ColType::Area(_) => {}
+                        ColType::Effect(_) => {}
+                        ColType::Targets(_) => {}
+                        ColType::Duration(_) => {}
+                        ColType::SavingThrow(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(ui, self.filter_window, save, save_or, "Save");
+                            });
+                        }
+                        ColType::SpellResistance(_) => {
+                            resp.context_menu(|ui| {
+                                filter_row!(
+                                    ui,
+                                    self.filter_window,
+                                    spell_res,
+                                    spell_res_or,
+                                    "Spell Resistance"
+                                );
+                            });
+                        }
+                        ColType::Description(_) => {
+                            resp.context_menu(|ui| {
+                                ui.text_edit_singleline(&mut self.filter_window.description);
+                            });
+                        }
+                        ColType::Source(_) => {}
+                    };
                 });
             } else if clicked != ColType::None {
                 *order = RowOrder::None;
@@ -447,165 +536,166 @@ impl SpellTable {
     }
 
     fn render_body(&mut self, body: egui_extras::TableBody<'_>) {
-        let mut stuff: Vec<(&Spell, String)> = self
-            .value
-            .iter()
-            .filter_map(|spell| {
-                spell.filter_map_level(
-                    self.filter_window.class_or,
-                    &self.filter_window.selected_classes,
-                )
-            })
-            .filter(|(spell, level)| self.filter_window.test(spell, level))
-            .collect();
-        for (col, ordering) in &self.shown_columns {
-            stuff.sort_by(|(spell1, level1), (spell2, level2)| {
-                ordering.compare(col, spell1, spell2, level1, level2)
-            });
-        }
-
-        body.rows(15.0, stuff.len(), |mut row: TableRow<'_, '_>| {
-            let (spell, level) = &stuff[row.index()];
-            //row.set_selected(selected);
-            for (col, _) in &self.shown_columns {
-                if col.get_bool() {
-                    match col {
-                        ColType::None => {}
-                        ColType::Name(_) => {
-                            row.col(|ui| {
-                                ui.add(egui::Label::new(&spell.name).selectable(false));
-                            });
-                        }
-                        ColType::School(_) => {
-                            row.col(|ui| {
-                                ui.add(egui::Label::new(&spell.school).selectable(false));
-                            });
-                        }
-                        ColType::Level(_) => {
-                            row.col(|ui| {
-                                ui.add(egui::Label::new(level).selectable(false));
-                            });
-                        }
-                        ColType::Subschools(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.subschool)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Domain(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.domain).truncate().selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Descriptors(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.descriptors)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Components(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.components)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Range(_) => {
-                            row.col(|ui| {
-                                ui.add(egui::Label::new(&spell.range).truncate().selectable(false));
-                            });
-                        }
-                        ColType::Area(_) => {
-                            row.col(|ui| {
-                                ui.add(egui::Label::new(&spell.area).truncate().selectable(false));
-                            });
-                        }
-                        ColType::Effect(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.effect).truncate().selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Targets(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.targets)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Duration(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.duration)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::SavingThrow(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.saving_throw)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::SpellResistance(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.spell_resistance)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Description(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.short_description)
-                                        .truncate()
-                                        .selectable(false),
-                                );
-                            });
-                        }
-                        ColType::Source(_) => {
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new(&spell.source).truncate().selectable(false),
-                                );
-                            });
-                        }
-                    };
-                }
+        if let Some(stuff) = &mut self.shown_value {
+            for (col, ordering) in &self.shown_columns {
+                stuff.sort_by(|(spell1, level1), (spell2, level2)| {
+                    ordering.compare(col, spell1, spell2, level1, level2)
+                });
             }
-            let row_response = row.response();
-            let new_spell_id: u32 = stuff[row.index()].0.id;
-            if row_response.clicked() {
-                if let Some(old_spell) = &self.selected_spell {
-                    if old_spell.id == new_spell_id {
-                        self.selected_spell = None;
+
+            body.rows(15.0, stuff.len(), |mut row: TableRow<'_, '_>| {
+                let (spell, level) = &stuff[row.index()];
+                //row.set_selected(selected);
+                for (col, _) in &self.shown_columns {
+                    if col.get_bool() {
+                        match col {
+                            ColType::None => {}
+                            ColType::Name(_) => {
+                                row.col(|ui| {
+                                    ui.add(egui::Label::new(&spell.name).selectable(false));
+                                });
+                            }
+                            ColType::School(_) => {
+                                row.col(|ui| {
+                                    ui.add(egui::Label::new(&spell.school).selectable(false));
+                                });
+                            }
+                            ColType::Level(_) => {
+                                row.col(|ui| {
+                                    ui.add(egui::Label::new(level).selectable(false));
+                                });
+                            }
+                            ColType::Subschools(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.subschool)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Domain(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.domain)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Descriptors(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.descriptors)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Components(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.components)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Range(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.range).truncate().selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Area(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.area).truncate().selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Effect(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.effect)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Targets(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.targets)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Duration(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.duration)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::SavingThrow(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.saving_throw)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::SpellResistance(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.spell_resistance)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Description(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.short_description)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                            ColType::Source(_) => {
+                                row.col(|ui| {
+                                    ui.add(
+                                        egui::Label::new(&spell.source)
+                                            .truncate()
+                                            .selectable(false),
+                                    );
+                                });
+                            }
+                        };
+                    }
+                }
+                let row_response = row.response();
+                let new_spell_id: u32 = stuff[row.index()].0.id;
+                if row_response.clicked() {
+                    if let Some(old_spell) = &self.selected_spell {
+                        if old_spell.id == new_spell_id {
+                            self.selected_spell = None;
+                        } else {
+                            self.selected_spell = Some(stuff[row.index()].0.clone())
+                        }
                     } else {
                         self.selected_spell = Some(stuff[row.index()].0.clone())
                     }
-                } else {
-                    self.selected_spell = Some(stuff[row.index()].0.clone())
                 }
-            }
-        });
+            });
+        }
     }
 
     fn selected_ui(&mut self, ctx: &egui::Context) {
@@ -622,26 +712,20 @@ impl SpellTable {
     }
 
     fn render_spell(ui: &mut egui::Ui, spell: &Spell) {
+        let meta: &&SpellMeta = BONUS_INFO.get(&spell.id).unwrap();
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(&spell.name).size(30.0));
             ui.add(
                 egui::Hyperlink::from_label_and_url(
                     egui::RichText::new("(d20PFsrd)").size(10.0),
-                    format!(
-                        "https://www.d20pfsrd.com/magic/all-spells/{}/{}/",
-                        spell.name.to_lowercase().chars().next().unwrap(),
-                        spell.name.to_case(Case::Kebab),
-                    ),
+                    meta.d20pfsrd,
                 )
                 .open_in_new_tab(true),
             );
             ui.add(
                 egui::Hyperlink::from_label_and_url(
                     egui::RichText::new("(Archives)").size(10.0),
-                    format!(
-                        "https://aonprd.com/SpellDisplay.aspx?ItemName={}",
-                        spell.name.to_lowercase(),
-                    ),
+                    meta.archives,
                 )
                 .open_in_new_tab(true),
             );
@@ -739,11 +823,7 @@ impl SpellTable {
         });
         ui.separator();
         let mut cache = egui_commonmark::CommonMarkCache::default();
-        egui_commonmark::CommonMarkViewer::new().show(
-            ui,
-            &mut cache,
-            &html2md::parse_html(&spell.description_formatted).replace("\n ", "\n\n"),
-        );
+        egui_commonmark::CommonMarkViewer::new().show(ui, &mut cache, meta.description_md);
 
         if spell.mythic {
             ui.separator();
@@ -758,6 +838,27 @@ impl SpellTable {
                 ui.separator();
                 ui.label(&spell.augmented);
             }
+        }
+    }
+
+    fn update_filters(&mut self) -> bool {
+        if self.filter_window.filters_changed {
+            self.shown_value = Some(
+                self.value
+                    .iter()
+                    .filter_map(|spell| {
+                        spell.filter_map_level(
+                            self.filter_window.class_or,
+                            &self.filter_window.selected_classes,
+                        )
+                    })
+                    .filter(|(spell, level)| self.filter_window.test(spell, level))
+                    .collect(),
+            );
+            self.filter_window.filters_changed = false;
+            true
+        } else {
+            false
         }
     }
 }
@@ -794,6 +895,8 @@ struct FilterWindow {
     source: String,
     selected_classes: Vec<ClassType>,
     class_or: bool,
+    #[serde(skip, default)]
+    filters_changed: bool,
 }
 
 impl Default for FilterWindow {
@@ -828,6 +931,7 @@ impl Default for FilterWindow {
             source: String::new(),
             selected_classes: ClassType::get_all(),
             class_or: false,
+            filters_changed: false,
         }
     }
 }
@@ -843,7 +947,9 @@ impl FilterWindow {
             .show(ctx, |ui| {
                 ui.label("Name");
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.name);
+                    if ui.text_edit_singleline(&mut self.name).changed() {
+                        self.filters_changed = true;
+                    };
                 });
                 ui.separator();
                 ui.label("Description");
@@ -851,105 +957,25 @@ impl FilterWindow {
                     ui.text_edit_singleline(&mut self.description);
                 });
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Class");
-                    ui.add(toggle(&mut self.class_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for c in &mut self.selected_classes {
-                        *c = c.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, selected_classes, class_or, "Class");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Spellschool");
-                    ui.add(toggle(&mut self.school_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for school in &mut self.school {
-                        *school = school.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, school, school_or, "Spellschool");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Spell Level");
-                    ui.add(toggle(&mut self.level_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for level in &mut self.level {
-                        *level = level.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, level, level_or, "Spell Level");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Components");
-                    ui.add(toggle(&mut self.components_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for comp in &mut self.components {
-                        *comp = comp.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, components, components_or, "Components");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Range");
-                    ui.add(toggle(&mut self.range_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for range in &mut self.range {
-                        *range = range.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, range, range_or, "Range");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Subschool");
-                    ui.add(toggle(&mut self.subschool_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for subschool in &mut self.subschool {
-                        *subschool = subschool.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, subschool, subschool_or, "Subschool");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Domain");
-                    ui.add(toggle(&mut self.domain_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for domain in &mut self.domain {
-                        *domain = domain.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, domain, domain_or, "Domain");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Save");
-                    ui.add(toggle(&mut self.save_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for save in &mut self.save {
-                        *save = save.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, save, save_or, "Save");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Spell Resistance");
-                    ui.add(toggle(&mut self.spell_res_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for spell_res in &mut self.spell_res {
-                        *spell_res = spell_res.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, spell_res, spell_res_or, "Spell Resistance");
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Descriptor");
-                    ui.add(toggle(&mut self.descriptor_or));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    for desc in &mut self.descriptor {
-                        *desc = desc.create_btn(ui);
-                    }
-                });
+                filter_row!(ui, self, descriptor, descriptor_or, "Descriptor");
             });
     }
 

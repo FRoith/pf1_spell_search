@@ -1,3 +1,24 @@
+#[macro_export]
+macro_rules! filter_row {
+    ($ui:ident, $filter_window:expr, $value:ident, $or:ident, $label:expr) => {
+        $ui.horizontal(|ui| {
+            ui.label($label);
+            if ui.add(toggle(&mut $filter_window.$or)).changed() {
+                $filter_window.filters_changed = true;
+            };
+        });
+        $ui.horizontal_wrapped(|ui| {
+            for x in &mut $filter_window.$value {
+                let resp = x.create_btn(ui);
+                if resp != *x {
+                    $filter_window.filters_changed = true;
+                }
+                *x = resp;
+            }
+        });
+    };
+}
+
 fn toggle_ui(ui: &mut egui::Ui, on: &mut bool, text_off: &str, text_on: &str) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
