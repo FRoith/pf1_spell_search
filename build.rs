@@ -7,12 +7,6 @@ include!("spell-build.rs");
 fn main() {
     let spells = load_spell_table();
     let mut cont = String::new();
-    //cont += &format!("pub const ALL_SPELLS: [Spell; {}] = [\n", spells.len());
-    //for spell in spells {
-    //    cont += &spell.to_string();
-    //    cont += ",\n";
-    //}
-    //cont += "];\n";
     cont += "use std::collections::HashMap;
     lazy_static! {
     pub static ref BONUS_INFO: HashMap<u32, &'static SpellMeta> = {
