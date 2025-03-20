@@ -8,6 +8,7 @@ proc-macro = true
 
 [dependencies]
 syn = "2.0.100"
-quote = "1.0.39"
+quote = "1.0.40"
 proc-macro2 = "1.0.94"
+darling = "0.20.10"
 filter_repr = { path = "../filter_repr" }

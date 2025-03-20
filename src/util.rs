@@ -2,10 +2,12 @@
 macro_rules! filter_row {
     ($ui:ident, $filter_window:expr, $value:ident, $or:ident, $label:expr) => {
         $ui.horizontal(|ui| {
-            ui.label($label);
+            if ($label != "") {
+                ui.label($label);
+            }
             if ui.add(toggle(&mut $filter_window.$or)).changed() {
                 $filter_window.filters_changed = true;
-            };
+            }
         });
         $ui.horizontal_wrapped(|ui| {
             for x in &mut $filter_window.$value {

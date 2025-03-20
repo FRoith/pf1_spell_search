@@ -3,6 +3,8 @@ pub trait FilterRepr {
 
     fn test(&self, spell: &str) -> bool;
 
+    fn test_exact(&self, spell: &str) -> bool;
+
     fn get_all() -> Vec<Self>
     where
         Self: Sized;
@@ -47,6 +49,14 @@ impl FilterState {
             FilterState::None => true,
             FilterState::Positive => spell.to_lowercase().contains(&value.to_lowercase()),
             FilterState::Negative => !spell.to_lowercase().contains(&value.to_lowercase()),
+        }
+    }
+
+    pub fn test_exact(&self, spell: &str, value: &str) -> bool {
+        match self {
+            FilterState::None => true,
+            FilterState::Positive => spell == value,
+            FilterState::Negative => spell != value,
         }
     }
 }

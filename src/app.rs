@@ -9,7 +9,7 @@ use crate::{
     filter_row,
     filters::{
         Domain, Level, Save, SpellComponent, SpellDescriptor, SpellRange, SpellResistance,
-        Spellschool, Subschool,
+        SpellSource, Spellschool, Subschool,
     },
     spell::{ClassType, Spell, SpellMeta, BONUS_INFO},
     util::toggle,
@@ -216,6 +216,8 @@ pub struct SpellSearchApp {
     spell_table: SpellTable,
     #[serde(skip)]
     filter_window_active: bool,
+    #[serde(skip)]
+    source_window_active: bool,
 }
 
 impl Default for SpellSearchApp {
@@ -223,6 +225,7 @@ impl Default for SpellSearchApp {
         Self {
             spell_table: SpellTable::new(),
             filter_window_active: false,
+            source_window_active: false,
         }
     }
 }
@@ -280,13 +283,25 @@ impl eframe::App for SpellSearchApp {
                     self.filter_window_active = !self.filter_window_active;
                 };
 
+                if ui.button("Sources").clicked() {
+                    self.source_window_active = !self.source_window_active;
+                };
+
                 if self.filter_window_active {
                     self.spell_table
                         .filter_window
                         .filter_ui(ctx, &mut self.filter_window_active);
                 }
 
+                if self.source_window_active {
+                    self.spell_table
+                        .source_window
+                        .filter_ui(ctx, &mut self.source_window_active);
+                }
+
                 egui::widgets::global_theme_preference_buttons(ui);
+
+                ui.hyperlink_to(" Github", "https://github.com/FRoith/pf1_spell_search");
             });
         });
 
@@ -341,6 +356,7 @@ struct SpellTable {
     filter_string: String,
     selected_spell: Option<Spell>,
     filter_window: FilterWindow,
+    source_window: SourceWindow,
 }
 
 fn load_spell_table() -> &'static Vec<Spell> {
@@ -357,6 +373,7 @@ impl SpellTable {
             filter_string: String::new(),
             selected_spell: None,
             filter_window: FilterWindow::new(),
+            source_window: SourceWindow::new(),
         }
     }
 
@@ -842,7 +859,7 @@ impl SpellTable {
     }
 
     fn update_filters(&mut self) -> bool {
-        if self.filter_window.filters_changed {
+        if self.filter_window.filters_changed || self.source_window.filters_changed {
             self.shown_value = Some(
                 self.value
                     .iter()
@@ -853,9 +870,11 @@ impl SpellTable {
                         )
                     })
                     .filter(|(spell, level)| self.filter_window.test(spell, level))
+                    .filter(|(spell, _)| self.source_window.test(spell))
                     .collect(),
             );
             self.filter_window.filters_changed = false;
+            self.source_window.filters_changed = false;
             true
         } else {
             false
@@ -892,7 +911,8 @@ struct FilterWindow {
     prev_description: String,
     #[serde(skip)]
     keywords: Vec<Result<Regex, regex::Error>>,
-    source: String,
+    source: Vec<SpellSource>,
+    source_or: bool,
     selected_classes: Vec<ClassType>,
     class_or: bool,
     #[serde(skip, default)]
@@ -928,7 +948,8 @@ impl Default for FilterWindow {
             description: String::new(),
             prev_description: String::new(),
             keywords: Vec::new(),
-            source: String::new(),
+            source: SpellSource::get_all(),
+            source_or: false,
             selected_classes: ClassType::get_all(),
             class_or: false,
             filters_changed: false,
@@ -1077,6 +1098,60 @@ impl FilterWindow {
             } else {
                 self.range.iter().all(|f| f.test(&spell.range))
             }
+            && if self.source_or {
+                let mut it = self.source.iter().filter(|f| f.some_filter());
+                if let Some(ff) = it.next() {
+                    ff.test(&spell.source) || it.any(|f| f.test_exact(&spell.source))
+                } else {
+                    true
+                }
+            } else {
+                self.source.iter().all(|f| f.test_exact(&spell.source))
+            }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct SourceWindow {
+    source: Vec<SpellSource>,
+    source_or: bool,
+    filters_changed: bool,
+}
+
+impl Default for SourceWindow {
+    fn default() -> Self {
+        Self {
+            source: SpellSource::get_all(),
+            source_or: false,
+            filters_changed: false,
+        }
+    }
+}
+
+impl SourceWindow {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn filter_ui(&mut self, ctx: &egui::Context, filter_open: &mut bool) {
+        egui::containers::Window::new("Sources")
+            .open(filter_open)
+            .show(ctx, |ui| {
+                filter_row!(ui, self, source, source_or, "");
+            });
+    }
+
+    fn test(&self, spell: &Spell) -> bool {
+        if self.source_or {
+            let mut it = self.source.iter().filter(|f| f.some_filter());
+            if let Some(ff) = it.next() {
+                ff.test(&spell.source) || it.any(|f| f.test_exact(&spell.source))
+            } else {
+                true
+            }
+        } else {
+            self.source.iter().all(|f| f.test_exact(&spell.source))
+        }
     }
 }
 

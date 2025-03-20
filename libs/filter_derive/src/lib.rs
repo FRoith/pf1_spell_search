@@ -8,7 +8,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{Data, Fields};
 
-#[proc_macro_derive(FilterReprMacro)]
+#[proc_macro_derive(FilterReprMacro, attributes(name))]
 pub fn filter_repr_derive(input: TokenStream) -> TokenStream {
     // Construct a representation of Rust code as a syntax tree
     // that we can manipulate
@@ -56,14 +56,68 @@ fn impl_filter_repr(input: &syn::DeriveInput) -> TokenStream {
                         Fields::Unit => quote_spanned! { variant.span()=> },
                         Fields::Named(_) => quote_spanned! {variant.span()=> {..} },
                     };
+
                     let namestr = &variant
-                        .ident
-                        .to_string()
-                        .trim_start_matches('_')
-                        .replace("_", "-")
-                        .to_string();
+                        .attrs
+                        .iter()
+                        .filter_map(|a| a.meta.require_name_value().ok())
+                        .filter(|a| a.path.is_ident("name"))
+                        .filter_map(|a| match &a.value {
+                            syn::Expr::Lit(expr_lit) => match &expr_lit.lit {
+                                syn::Lit::Str(lit_str) => Some(lit_str.value()),
+                                _ => None,
+                            },
+                            _ => None,
+                        })
+                        .next()
+                        .unwrap_or(
+                            variant
+                                .ident
+                                .to_string()
+                                .trim_start_matches('_')
+                                .replace("_", " ")
+                                .to_string(),
+                        );
                     quote! {
                         Self::#name_ident (filter_state) => filter_state.test(spell, #namestr),
+                    }
+                })
+                .collect();
+
+            let othercases2: Vec<proc_macro2::TokenStream> = data_enum
+                .variants
+                .iter()
+                .map(|variant| {
+                    let name_ident = &variant.ident;
+                    let _fields = match &variant.fields {
+                        Fields::Unnamed(_) => quote_spanned! {variant.span()=> (..) },
+                        Fields::Unit => quote_spanned! { variant.span()=> },
+                        Fields::Named(_) => quote_spanned! {variant.span()=> {..} },
+                    };
+
+                    let namestr = &variant
+                        .attrs
+                        .iter()
+                        .filter_map(|a| a.meta.require_name_value().ok())
+                        .filter(|a| a.path.is_ident("name"))
+                        .filter_map(|a| match &a.value {
+                            syn::Expr::Lit(expr_lit) => match &expr_lit.lit {
+                                syn::Lit::Str(lit_str) => Some(lit_str.value()),
+                                _ => None,
+                            },
+                            _ => None,
+                        })
+                        .next()
+                        .unwrap_or(
+                            variant
+                                .ident
+                                .to_string()
+                                .trim_start_matches('_')
+                                .replace("_", " ")
+                                .to_string(),
+                        );
+                    quote! {
+                        Self::#name_ident (filter_state) => filter_state.test_exact(spell, #namestr),
                     }
                 })
                 .collect();
@@ -79,11 +133,26 @@ fn impl_filter_repr(input: &syn::DeriveInput) -> TokenStream {
                         Fields::Named(_) => quote_spanned! {variant.span()=> {..} },
                     };
                     let namestr = &variant
-                        .ident
-                        .to_string()
-                        .trim_start_matches('_')
-                        .replace("_", "-")
-                        .to_string();
+                        .attrs
+                        .iter()
+                        .filter_map(|a| a.meta.require_name_value().ok())
+                        .filter(|a| a.path.is_ident("name"))
+                        .filter_map(|a| match &a.value {
+                            syn::Expr::Lit(expr_lit) => match &expr_lit.lit {
+                                syn::Lit::Str(lit_str) => Some(lit_str.value()),
+                                _ => None,
+                            },
+                            _ => None,
+                        })
+                        .next()
+                        .unwrap_or(
+                            variant
+                                .ident
+                                .to_string()
+                                .trim_start_matches('_')
+                                .replace("_", " ")
+                                .to_string(),
+                        );
                     quote! {
                         Self::#name_ident (FilterState::None) => {
                             let resp = ui.add(egui::Button::new(#namestr));
@@ -122,6 +191,14 @@ fn impl_filter_repr(input: &syn::DeriveInput) -> TokenStream {
                 fn test(&self, spell: &str) -> bool {
                     match self {
                         #(#othercases)*
+                    }
+                }
+            });
+
+            variant_checker_functions.extend(quote! {
+                fn test_exact(&self, spell: &str) -> bool {
+                    match self {
+                        #(#othercases2)*
                     }
                 }
             });
