@@ -309,15 +309,8 @@ impl eframe::App for SpellSearchApp {
                     );
                     match r {
                         Some((new_spell, true)) => {
-                            if let Some(old_spell) = &self.spell_table.selected_spell_window {
-                                if old_spell.id == new_spell.id {
-                                    self.spell_table.selected_spell_window = None;
-                                } else {
-                                    self.spell_table.selected_spell_window = Some(new_spell);
-                                }
-                            } else {
-                                self.spell_table.selected_spell_window = Some(new_spell);
-                            }
+                            self.spell_table.selected_spell_window = Some(new_spell);
+                            self.spell_table.spell_window_active = true;
                         }
                         Some((new_spell, false)) => {
                             if let Some(old_spell) = &self.spell_table.selected_spell {
@@ -792,25 +785,20 @@ impl SpellTable {
             match r {
                 Some((new_spell, true)) => {
                     if let Some(old_spell) = &self.selected_spell_window {
-                        if old_spell.id == new_spell.id {
+                        if old_spell.id == new_spell.id && self.spell_window_active {
                             self.selected_spell_window = None;
+                            self.spell_window_active = false;
                         } else {
                             self.selected_spell_window = Some(new_spell);
+                            self.spell_window_active = true;
                         }
                     } else {
                         self.selected_spell_window = Some(new_spell);
+                        self.spell_window_active = true;
                     }
                 }
                 Some((new_spell, false)) => {
-                    if let Some(old_spell) = &self.selected_spell {
-                        if old_spell.id == new_spell.id {
-                            self.selected_spell = None;
-                        } else {
-                            self.selected_spell = Some(new_spell);
-                        }
-                    } else {
-                        self.selected_spell = Some(new_spell);
-                    }
+                    self.selected_spell = Some(new_spell);
                 }
                 None => {}
             }

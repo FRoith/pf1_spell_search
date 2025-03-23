@@ -171,7 +171,9 @@ fn struct2egui(
             ret
         }
         SpellDescriptionStruct::Br => {
-            ui.add_space(ui.available_width());
+            if !inline {
+                ui.label("\n");
+            }
             None
         }
         SpellDescriptionStruct::Listing(spell_description_structs) => {
