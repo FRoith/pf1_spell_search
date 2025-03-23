@@ -96,7 +96,7 @@ fn struct2egui(
                 .inner
         }
         SpellDescriptionStruct::Paragraph(spell_description_structs) => {
-            if spell_description_structs.len() == 0 {
+            if spell_description_structs.is_empty() {
                 None
             } else if inline {
                 let mut ret = None;
@@ -135,8 +135,7 @@ fn struct2egui(
         SpellDescriptionStruct::Italics(text) => {
             if let Some(spell) = ALL_SPELLS
                 .iter()
-                .filter(|s| s.name.to_lowercase() == text.to_lowercase())
-                .next()
+                .find(|s| s.name.to_lowercase() == text.to_lowercase())
             {
                 let res = ui.link(egui::RichText::new(*text));
                 if res.clicked() {
@@ -222,18 +221,12 @@ fn struct2egui(
         SpellDescriptionStruct::Table(spell_description_structs) => {
             let thead = spell_description_structs
                 .iter()
-                .find_map(|e| match e {
-                    SpellDescriptionStruct::Thead(_) => Some(e),
-                    _ => None,
-                })
+                .find(|e| matches!(e, SpellDescriptionStruct::Thead(_)))
                 .unwrap_or(&SpellDescriptionStruct::Br);
 
             let tbody = spell_description_structs
                 .iter()
-                .find_map(|e| match e {
-                    SpellDescriptionStruct::Tbody(_) => Some(e),
-                    _ => None,
-                })
+                .find(|e| matches!(e, SpellDescriptionStruct::Tbody(_)))
                 .unwrap_or(&SpellDescriptionStruct::Br);
 
             struct2egui(&SpellDescriptionStruct::Br, ui, x, inline, body_index);
@@ -248,11 +241,9 @@ fn struct2egui(
                             let n = rowlen(tbody);
                             ui.spacing_mut().item_spacing.x = x;
 
-                            if let Some(tcaption) =
-                                spell_description_structs.iter().find_map(|e| match e {
-                                    SpellDescriptionStruct::Caption(_) => Some(e),
-                                    _ => None,
-                                })
+                            if let Some(tcaption) = spell_description_structs
+                                .iter()
+                                .find(|e| matches!(e, SpellDescriptionStruct::Caption(_)))
                             {
                                 struct2egui(tcaption, ui, x, inline, body_index);
                             };
@@ -289,11 +280,9 @@ fn struct2egui(
                                     }
                                 });
 
-                            if let Some(tfoot) =
-                                spell_description_structs.iter().find_map(|e| match e {
-                                    SpellDescriptionStruct::Tfoot(_) => Some(e),
-                                    _ => None,
-                                })
+                            if let Some(tfoot) = spell_description_structs
+                                .iter()
+                                .find(|e| matches!(e, SpellDescriptionStruct::Tfoot(_)))
                             {
                                 struct2egui(tfoot, ui, x, inline, body_index);
                             };
@@ -381,9 +370,9 @@ fn thead2egui<'a>(
     }
 }
 
-fn tbody2egui<'a>(
+fn tbody2egui(
     body_data: &'static SpellDescriptionStruct,
-    t: egui_extras::Table<'a>,
+    t: egui_extras::Table<'_>,
     nrows: usize,
     x: f32,
 ) -> egui::scroll_area::ScrollAreaOutput<()> {

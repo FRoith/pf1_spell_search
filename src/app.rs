@@ -305,7 +305,7 @@ impl eframe::App for SpellSearchApp {
                     let r = self.spell_table.spell_window.spell_ui(
                         ctx,
                         &mut self.spell_table.spell_window_active,
-                        &mut self.spell_table.selected_spell_window.as_mut().unwrap(),
+                        self.spell_table.selected_spell_window.as_mut().unwrap(),
                     );
                     match r {
                         Some((new_spell, true)) => {
@@ -437,7 +437,7 @@ impl SpellTable {
                     self.render_header(&mut header);
                 })
                 .body(|body| {
-                    self.render_body(body, ctx);
+                    self.render_body(body);
                 });
         });
     }
@@ -600,7 +600,7 @@ impl SpellTable {
         }
     }
 
-    fn render_body(&mut self, body: egui_extras::TableBody<'_>, ctx: &egui::Context) {
+    fn render_body(&mut self, body: egui_extras::TableBody<'_>) {
         if let Some(stuff) = &mut self.shown_value {
             for (col, ordering) in &self.shown_columns {
                 stuff.sort_by(|(spell1, level1), (spell2, level2)| {
@@ -1257,14 +1257,8 @@ impl SourceWindow {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 struct SpellWindow {}
-
-impl Default for SpellWindow {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl SpellWindow {
     fn new() -> Self {
