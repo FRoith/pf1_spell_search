@@ -1,9 +1,9 @@
-var cacheName = 'egui-template-pwa';
+var cacheName = 'pf1-spell-search-pwa';
 var filesToCache = [
   './',
   './index.html',
-  './eframe_template.js',
-  './eframe_template_bg.wasm',
+  './pf1_spell_search.js',
+  './pf1_spell_search_bg.wasm',
 ];
 
 /* Start the service worker and cache all of the app's content */

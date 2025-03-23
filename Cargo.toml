@@ -1,6 +1,6 @@
 [package]
 name = "pf1_spell_search"
-version = "0.1.5"
+version = "0.2.0"
 authors = ["Felix Roithmayr <felix.roithmayr@aon.at>"]
 edition = "2021"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
@@ -24,7 +24,6 @@ log = "0.4.26"
 csv = "1.3.1"
 # You only need serde if you want app persistence:
 serde = { version = "1.0.219", features = ["derive"] }
-egui_commonmark = { version = "0.20.0", features = ["macros"] }
 filter_repr = { path = "libs/filter_repr" }
 filter_derive = { path = "libs/filter_derive" }
 lazy_static = "1.5.0"
@@ -33,10 +32,10 @@ regex = "1.11.1"
 [build-dependencies]
 egui = "0.31.1"
 csv = "1.3.1"
-html2md = "0.2.15"
 serde = { version = "1.0.219", features = ["derive"] }
 filter_repr = { path = "libs/filter_repr" }
 filter_derive = { path = "libs/filter_derive" }
+html_to_struct = { path = "libs/html_to_struct" }
 convert_case = "0.8.0"
 lazy_static = "1.5.0"
 

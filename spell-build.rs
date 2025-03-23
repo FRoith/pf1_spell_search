@@ -530,5 +530,5 @@ impl ClassType {
 pub struct SpellMeta {
     pub d20pfsrd: &'static str,
     pub archives: &'static str,
-    pub description_md: &'static str,
+    pub description_struct: SpellDescriptionStruct,
 }

@@ -12,7 +12,7 @@ use crate::{
         SpellSource, Spellschool, Subschool,
     },
     spell::{ClassType, Spell, SpellMeta, BONUS_INFO},
-    util::toggle,
+    util::{html2egui, toggle},
 };
 
 fn _vec_from_string<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -146,7 +146,7 @@ impl ColType {
         [
             (Self::Name(true), RowOrder::None),
             (Self::School(true), RowOrder::None),
-            (Self::Level(false), RowOrder::None),
+            (Self::Level(true), RowOrder::None),
             (Self::Subschools(false), RowOrder::None),
             (Self::Domain(false), RowOrder::None),
             (Self::Descriptors(false), RowOrder::None),
@@ -158,8 +158,8 @@ impl ColType {
             (Self::Duration(false), RowOrder::None),
             (Self::SavingThrow(false), RowOrder::None),
             (Self::SpellResistance(false), RowOrder::None),
-            (Self::Description(false), RowOrder::None),
-            (Self::Source(true), RowOrder::None),
+            (Self::Description(true), RowOrder::None),
+            (Self::Source(false), RowOrder::None),
         ]
         .into()
     }
@@ -299,6 +299,41 @@ impl eframe::App for SpellSearchApp {
                         .filter_ui(ctx, &mut self.source_window_active);
                 }
 
+                if self.spell_table.spell_window_active
+                    && self.spell_table.selected_spell_window.is_some()
+                {
+                    let r = self.spell_table.spell_window.spell_ui(
+                        ctx,
+                        &mut self.spell_table.spell_window_active,
+                        &mut self.spell_table.selected_spell_window.as_mut().unwrap(),
+                    );
+                    match r {
+                        Some((new_spell, true)) => {
+                            if let Some(old_spell) = &self.spell_table.selected_spell_window {
+                                if old_spell.id == new_spell.id {
+                                    self.spell_table.selected_spell_window = None;
+                                } else {
+                                    self.spell_table.selected_spell_window = Some(new_spell);
+                                }
+                            } else {
+                                self.spell_table.selected_spell_window = Some(new_spell);
+                            }
+                        }
+                        Some((new_spell, false)) => {
+                            if let Some(old_spell) = &self.spell_table.selected_spell {
+                                if old_spell.id == new_spell.id {
+                                    self.spell_table.selected_spell = None;
+                                } else {
+                                    self.spell_table.selected_spell = Some(new_spell);
+                                }
+                            } else {
+                                self.spell_table.selected_spell = Some(new_spell);
+                            }
+                        }
+                        None => {}
+                    }
+                }
+
                 egui::widgets::global_theme_preference_buttons(ui);
 
                 ui.hyperlink_to(" Github", "https://github.com/FRoith/pf1_spell_search");
@@ -318,7 +353,9 @@ impl eframe::App for SpellSearchApp {
         }
 
         self.spell_table.selected_ui(ctx);
+
         self.spell_table.table_ui(ctx);
+
         if self.spell_table.filter_window.description
             != self.spell_table.filter_window.prev_description
         {
@@ -338,15 +375,14 @@ impl eframe::App for SpellSearchApp {
         if self.spell_table.update_filters() {
             ctx.request_repaint();
         }
+        //if undo || redo {
+        //    panic!("{:?}", (undo, redo))
+        //}
     }
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct SpellTable {
-    #[serde(skip, default = "load_spell_table")]
-    // This how you opt-out of serialization of a field
-    value: &'static Vec<Spell>,
-
     #[serde(skip, default)]
     // This how you opt-out of serialization of a field
     shown_value: Option<Vec<(&'static Spell, String)>>,
@@ -355,25 +391,26 @@ struct SpellTable {
 
     filter_string: String,
     selected_spell: Option<Spell>,
+    selected_spell_window: Option<Spell>,
+    spell_window_active: bool,
     filter_window: FilterWindow,
     source_window: SourceWindow,
-}
-
-fn load_spell_table() -> &'static Vec<Spell> {
-    &crate::spell::ALL_SPELLS
+    spell_window: SpellWindow,
 }
 
 impl SpellTable {
     fn new() -> Self {
         let shown_columns: Vec<(ColType, RowOrder)> = ColType::get_all();
         Self {
-            value: load_spell_table(),
             shown_value: None,
             shown_columns,
             filter_string: String::new(),
             selected_spell: None,
+            selected_spell_window: None,
+            spell_window_active: false,
             filter_window: FilterWindow::new(),
             source_window: SourceWindow::new(),
+            spell_window: SpellWindow::new(),
         }
     }
 
@@ -382,6 +419,7 @@ impl SpellTable {
             // The central panel the region left after adding TopPanel's and BottomPanel's
             let s: &mut egui::Style = ui.style_mut();
             s.wrap_mode = Some(egui::TextWrapMode::Extend);
+
             TableBuilder::new(ui)
                 .auto_shrink(false)
                 .sense(egui::Sense::click())
@@ -399,7 +437,7 @@ impl SpellTable {
                     self.render_header(&mut header);
                 })
                 .body(|body| {
-                    self.render_body(body);
+                    self.render_body(body, ctx);
                 });
         });
     }
@@ -444,7 +482,12 @@ impl SpellTable {
                         ColType::Name(_) => {
                             resp.context_menu(|ui| {
                                 if ui
-                                    .text_edit_singleline(&mut self.filter_window.name)
+                                    .add(
+                                        egui::text_edit::TextEdit::singleline(
+                                            &mut self.filter_window.name,
+                                        )
+                                        .hint_text("case insensitive search"),
+                                    )
                                     .changed()
                                 {
                                     self.filter_window.filters_changed = true;
@@ -532,7 +575,12 @@ impl SpellTable {
                         }
                         ColType::Description(_) => {
                             resp.context_menu(|ui| {
-                                ui.text_edit_singleline(&mut self.filter_window.description);
+                                ui.add(
+                                    egui::text_edit::TextEdit::singleline(
+                                        &mut self.filter_window.description,
+                                    )
+                                    .hint_text("comma,seperated,keywords"),
+                                );
                             });
                         }
                         ColType::Source(_) => {}
@@ -552,7 +600,7 @@ impl SpellTable {
         }
     }
 
-    fn render_body(&mut self, body: egui_extras::TableBody<'_>) {
+    fn render_body(&mut self, body: egui_extras::TableBody<'_>, ctx: &egui::Context) {
         if let Some(stuff) = &mut self.shown_value {
             for (col, ordering) in &self.shown_columns {
                 stuff.sort_by(|(spell1, level1), (spell2, level2)| {
@@ -711,149 +759,60 @@ impl SpellTable {
                         self.selected_spell = Some(stuff[row.index()].0.clone())
                     }
                 }
+                if row_response.secondary_clicked() {
+                    if let Some(old_spell) = &self.selected_spell_window {
+                        if old_spell.id == new_spell_id {
+                            self.selected_spell_window = None;
+                            self.spell_window_active = false;
+                        } else {
+                            self.selected_spell_window = Some(stuff[row.index()].0.clone());
+                            self.spell_window_active = true;
+                        }
+                    } else {
+                        self.selected_spell_window = Some(stuff[row.index()].0.clone());
+                        self.spell_window_active = true;
+                    }
+                }
             });
         }
     }
 
     fn selected_ui(&mut self, ctx: &egui::Context) {
-        if let Some(old_spell) = &self.selected_spell {
-            egui::TopBottomPanel::bottom("bottom")
+        if let Some(old_spell) = &mut self.selected_spell {
+            let r = egui::TopBottomPanel::bottom("bottom")
                 .default_height(400.0)
                 .resizable(true)
                 .show(ctx, |ui| {
                     egui::containers::ScrollArea::vertical()
                         .auto_shrink(false)
-                        .show(ui, |ui| Self::render_spell(ui, old_spell));
-                });
-        }
-    }
-
-    fn render_spell(ui: &mut egui::Ui, spell: &Spell) {
-        let meta: &&SpellMeta = BONUS_INFO.get(&spell.id).unwrap();
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(&spell.name).size(30.0));
-            ui.add(
-                egui::Hyperlink::from_label_and_url(
-                    egui::RichText::new("(d20PFsrd)").size(10.0),
-                    meta.d20pfsrd,
-                )
-                .open_in_new_tab(true),
-            );
-            ui.add(
-                egui::Hyperlink::from_label_and_url(
-                    egui::RichText::new("(Archives)").size(10.0),
-                    meta.archives,
-                )
-                .open_in_new_tab(true),
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("School").strong().size(12.0));
-            ui.label(
-                egui::RichText::new(format!(
-                    "{}{}",
-                    &spell.school,
-                    if spell.subschool.is_empty() {
-                        "".to_string()
+                        .show(ui, |ui| render_spell(ui, old_spell))
+                        .inner
+                })
+                .inner;
+            match r {
+                Some((new_spell, true)) => {
+                    if let Some(old_spell) = &self.selected_spell_window {
+                        if old_spell.id == new_spell.id {
+                            self.selected_spell_window = None;
+                        } else {
+                            self.selected_spell_window = Some(new_spell);
+                        }
                     } else {
-                        format!(" ({})", &spell.subschool)
+                        self.selected_spell_window = Some(new_spell);
                     }
-                ))
-                .size(12.0),
-            );
-            ui.separator();
-            ui.label(egui::RichText::new("Level").strong().size(12.0));
-            ui.label(egui::RichText::new(&spell.spell_level).size(12.0));
-            if !spell.domain.is_empty() {
-                ui.separator();
-                ui.label(egui::RichText::new("Domain").strong().size(12.0));
-                ui.label(egui::RichText::new(&spell.domain).size(12.0));
-            }
-            if !spell.bloodline.is_empty() {
-                ui.separator();
-                ui.label(egui::RichText::new("Bloodline").strong().size(12.0));
-                ui.label(egui::RichText::new(&spell.bloodline).size(12.0));
-            }
-        });
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Casting Time").strong().size(13.0));
-            ui.label(egui::RichText::new(&spell.casting_time).size(13.0));
-        });
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Components").strong().size(13.0));
-            ui.label(egui::RichText::new(&spell.components).size(13.0));
-        });
-        ui.separator();
-        if !spell.targets.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Target").strong().size(13.0));
-                ui.label(egui::RichText::new(&spell.targets).size(13.0));
-            });
-        }
-        if !spell.effect.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Effect").strong().size(13.0));
-                ui.label(
-                    egui::RichText::new(format!(
-                        "{}{}",
-                        &spell.effect,
-                        if spell.shapeable { " (S)" } else { "" }
-                    ))
-                    .size(13.0),
-                );
-            });
-        }
-        if !spell.range.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Range").strong().size(13.0));
-                ui.label(egui::RichText::new(&spell.range).size(13.0));
-            });
-        }
-        if !spell.area.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Area").strong().size(13.0));
-                ui.label(egui::RichText::new(&spell.area).size(13.0));
-            });
-        }
-
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Duration").strong().size(13.0));
-            ui.label(
-                egui::RichText::new(format!(
-                    "{}{}",
-                    &spell.duration,
-                    if spell.dismissible && !spell.duration.ends_with("(D)") {
-                        " (D)"
+                }
+                Some((new_spell, false)) => {
+                    if let Some(old_spell) = &self.selected_spell {
+                        if old_spell.id == new_spell.id {
+                            self.selected_spell = None;
+                        } else {
+                            self.selected_spell = Some(new_spell);
+                        }
                     } else {
-                        ""
+                        self.selected_spell = Some(new_spell);
                     }
-                ))
-                .size(13.0),
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Saving throw").strong().size(13.0));
-            ui.label(egui::RichText::new(format!("{};", &spell.saving_throw)).size(13.0));
-            ui.label(egui::RichText::new("Spell Resistance").strong().size(13.0));
-            ui.label(egui::RichText::new(&spell.spell_resistance).size(13.0));
-        });
-        ui.separator();
-        let mut cache = egui_commonmark::CommonMarkCache::default();
-        egui_commonmark::CommonMarkViewer::new().show(ui, &mut cache, meta.description_md);
-
-        if spell.mythic {
-            ui.separator();
-            ui.label(
-                egui::RichText::new(format!("Mythic {}", &spell.name))
-                    .strong()
-                    .size(14.0),
-            );
-            ui.separator();
-            ui.label(&spell.mythic_text);
-            if !spell.augmented.is_empty() {
-                ui.separator();
-                ui.label(&spell.augmented);
+                }
+                None => {}
             }
         }
     }
@@ -861,7 +820,7 @@ impl SpellTable {
     fn update_filters(&mut self) -> bool {
         if self.filter_window.filters_changed || self.source_window.filters_changed {
             self.shown_value = Some(
-                self.value
+                crate::spell::ALL_SPELLS
                     .iter()
                     .filter_map(|spell| {
                         spell.filter_map_level(
@@ -880,6 +839,140 @@ impl SpellTable {
             false
         }
     }
+}
+
+fn render_spell(ui: &mut egui::Ui, spell: &mut Spell) -> Option<(Spell, bool)> {
+    let meta: &SpellMeta = BONUS_INFO.get(&spell.id).unwrap();
+
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new(&spell.name).size(30.0));
+        ui.add(
+            egui::Hyperlink::from_label_and_url(
+                egui::RichText::new("(d20PFsrd)").size(10.0),
+                meta.d20pfsrd,
+            )
+            .open_in_new_tab(true),
+        );
+        ui.add(
+            egui::Hyperlink::from_label_and_url(
+                egui::RichText::new("(Archives)").size(10.0),
+                meta.archives,
+            )
+            .open_in_new_tab(true),
+        );
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("School").strong().size(12.0));
+        ui.label(
+            egui::RichText::new(format!(
+                "{}{}",
+                &spell.school,
+                if spell.subschool.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(" ({})", &spell.subschool)
+                }
+            ))
+            .size(12.0),
+        );
+        ui.separator();
+        ui.label(egui::RichText::new("Level").strong().size(12.0));
+        ui.label(egui::RichText::new(&spell.spell_level).size(12.0));
+        if !spell.domain.is_empty() {
+            ui.separator();
+            ui.label(egui::RichText::new("Domain").strong().size(12.0));
+            ui.label(egui::RichText::new(&spell.domain).size(12.0));
+        }
+        if !spell.bloodline.is_empty() {
+            ui.separator();
+            ui.label(egui::RichText::new("Bloodline").strong().size(12.0));
+            ui.label(egui::RichText::new(&spell.bloodline).size(12.0));
+        }
+    });
+    ui.separator();
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("Casting Time").strong().size(13.0));
+        ui.label(egui::RichText::new(&spell.casting_time).size(13.0));
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("Components").strong().size(13.0));
+        ui.label(egui::RichText::new(&spell.components).size(13.0));
+    });
+    ui.separator();
+    if !spell.targets.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Target").strong().size(13.0));
+            ui.label(egui::RichText::new(&spell.targets).size(13.0));
+        });
+    }
+    if !spell.effect.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Effect").strong().size(13.0));
+            ui.label(
+                egui::RichText::new(format!(
+                    "{}{}",
+                    &spell.effect,
+                    if spell.shapeable { " (S)" } else { "" }
+                ))
+                .size(13.0),
+            );
+        });
+    }
+    if !spell.range.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Range").strong().size(13.0));
+            ui.label(egui::RichText::new(&spell.range).size(13.0));
+        });
+    }
+    if !spell.area.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Area").strong().size(13.0));
+            ui.label(egui::RichText::new(&spell.area).size(13.0));
+        });
+    }
+
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("Duration").strong().size(13.0));
+        ui.label(
+            egui::RichText::new(format!(
+                "{}{}",
+                &spell.duration,
+                if spell.dismissible && !spell.duration.ends_with("(D)") {
+                    " (D)"
+                } else {
+                    ""
+                }
+            ))
+            .size(13.0),
+        );
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("Saving throw").strong().size(13.0));
+        ui.label(egui::RichText::new(format!("{};", &spell.saving_throw)).size(13.0));
+        ui.label(egui::RichText::new("Spell Resistance").strong().size(13.0));
+        ui.label(egui::RichText::new(&spell.spell_resistance).size(13.0));
+    });
+    ui.separator();
+    let r = html2egui(&meta.description_struct, ui);
+    //let mut cache = egui_commonmark::CommonMarkCache::default();
+    //egui_commonmark::CommonMarkViewer::new().show(ui, &mut cache, meta.description_md);
+
+    if spell.mythic {
+        ui.separator();
+        ui.label(
+            egui::RichText::new(format!("Mythic {}", &spell.name))
+                .strong()
+                .size(14.0),
+        );
+        ui.separator();
+        ui.label(&spell.mythic_text);
+        if !spell.augmented.is_empty() {
+            ui.separator();
+            ui.label(&spell.augmented);
+        }
+    }
+
+    r
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -968,14 +1061,23 @@ impl FilterWindow {
             .show(ctx, |ui| {
                 ui.label("Name");
                 ui.horizontal(|ui| {
-                    if ui.text_edit_singleline(&mut self.name).changed() {
+                    if ui
+                        .add(
+                            egui::text_edit::TextEdit::singleline(&mut self.name)
+                                .hint_text("case insensitive search"),
+                        )
+                        .changed()
+                    {
                         self.filters_changed = true;
                     };
                 });
                 ui.separator();
                 ui.label("Description");
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.description);
+                    ui.add(
+                        egui::text_edit::TextEdit::singleline(&mut self.description)
+                            .hint_text("comma,seperated,keywords"),
+                    );
                 });
                 ui.separator();
                 filter_row!(ui, self, selected_classes, class_or, "Class");
@@ -1151,6 +1253,37 @@ impl SourceWindow {
             }
         } else {
             self.source.iter().all(|f| f.test_exact(&spell.source))
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct SpellWindow {}
+
+impl Default for SpellWindow {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+impl SpellWindow {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn spell_ui(
+        &mut self,
+        ctx: &egui::Context,
+        filter_open: &mut bool,
+        spell: &mut Spell,
+    ) -> Option<(Spell, bool)> {
+        if let Some(r) = egui::containers::Window::new("Spell")
+            .open(filter_open)
+            .show(ctx, |ui| render_spell(ui, spell))
+        {
+            r.inner?
+        } else {
+            None
         }
     }
 }
