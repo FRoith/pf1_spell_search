@@ -9,7 +9,7 @@ include!("spell-build.rs");
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=spell-build.rs");
-    println!("cargo::rerun-if-changed=db/spell_full - Updated 31Mar2020.csv");
+    println!("cargo::rerun-if-changed=db/spells.csv");
 
     let spells = load_spell_table();
     let mut cont = String::new();
@@ -56,7 +56,7 @@ pub enum SpellDescriptionStruct {
 }
 
 fn load_spell_table() -> Vec<Spell> {
-    let data = include_str!("db/spell_full - Updated 31Mar2020.csv");
+    let data = include_str!("db/spells.csv");
     let mut reader = csv::ReaderBuilder::new()
         .terminator(csv::Terminator::CRLF)
         .from_reader(data.as_bytes());
