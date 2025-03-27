@@ -100,8 +100,8 @@ fn struct2egui(
                 None
             } else if inline {
                 let mut ret = None;
-                for c in spell_description_structs {
-                    if let Some(res) = struct2egui(c, ui, x, inline, body_index) {
+                for (i, c) in spell_description_structs.iter().enumerate() {
+                    if let Some(res) = struct2egui(c, ui, x, inline, body_index * 10 + i) {
                         ret = Some(res);
                     }
                 }
@@ -110,8 +110,8 @@ fn struct2egui(
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     let mut ret = None;
-                    for c in spell_description_structs {
-                        if let Some(res) = struct2egui(c, ui, x, inline, body_index) {
+                    for (i, c) in spell_description_structs.iter().enumerate() {
+                        if let Some(res) = struct2egui(c, ui, x, inline, body_index * 10 + i) {
                             ret = Some(res);
                         }
                     }
@@ -125,7 +125,7 @@ fn struct2egui(
             for c in spell_description_structs {
                 match c {
                     SpellDescriptionStruct::Text(text) => {
-                        ui.label(*text);
+                        ui.label(text);
                     }
                     _ => panic!("non text element found in caption"),
                 }
@@ -137,7 +137,7 @@ fn struct2egui(
                 .iter()
                 .find(|s| s.name.to_lowercase() == text.to_lowercase())
             {
-                let res = ui.link(egui::RichText::new(*text));
+                let res = ui.link(egui::RichText::new(text));
                 if res.clicked() {
                     Some((spell.clone(), false))
                 } else if res.secondary_clicked() {
@@ -146,12 +146,12 @@ fn struct2egui(
                     None
                 }
             } else {
-                ui.label(egui::RichText::new(*text).italics());
+                ui.label(egui::RichText::new(text).italics());
                 None
             }
         }
         SpellDescriptionStruct::Bold(text) => {
-            ui.label(egui::RichText::new(*text).strong());
+            ui.label(egui::RichText::new(text).strong());
             None
         }
         SpellDescriptionStruct::Sup(spell_description_structs) => {
@@ -259,6 +259,7 @@ fn struct2egui(
                                         .id_salt(body_index)
                                         .striped(true)
                                         .auto_shrink(true)
+                                        .min_scrolled_height(800.0)
                                         .cell_layout(egui::Layout::centered_and_justified(
                                             egui::Direction::LeftToRight,
                                         ))
@@ -343,7 +344,7 @@ fn struct2egui(
             None
         }
         SpellDescriptionStruct::Text(text) => {
-            ui.label(*text);
+            ui.label(text);
             None
         }
         _ => {
@@ -420,11 +421,14 @@ fn cell2egui(cell: &'static SpellDescriptionStruct, ui: &mut egui::Ui, x: f32) {
 
 fn tbodylen(tbody: &'static SpellDescriptionStruct, ncols: usize) -> usize {
     match tbody {
-        SpellDescriptionStruct::Tbody(tb) => tb
-            .iter()
-            .filter(|r| rowlen(r) == ncols)
-            .collect::<Vec<_>>()
-            .len(),
+        SpellDescriptionStruct::Tbody(tb) => {
+            tb.len()
+                - if rowlen(tb.iter().last().unwrap()) != ncols {
+                    1
+                } else {
+                    0
+                }
+        }
         _ => 0,
     }
 }
@@ -432,11 +436,7 @@ fn tbodylen(tbody: &'static SpellDescriptionStruct, ncols: usize) -> usize {
 fn rowlen(telem: &'static SpellDescriptionStruct) -> usize {
     match telem {
         SpellDescriptionStruct::Tbody(tb) | SpellDescriptionStruct::Thead(tb) => {
-            if let Some(r) = tb.first() {
-                rowlen(r)
-            } else {
-                0
-            }
+            tb.iter().map(rowlen).max().unwrap_or(0)
         }
         SpellDescriptionStruct::Row(r) => r.len(),
         _ => 0,

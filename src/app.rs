@@ -740,7 +740,7 @@ impl SpellTable {
                     }
                 }
                 let row_response = row.response();
-                let new_spell_id: u32 = stuff[row.index()].0.id;
+                let new_spell_id = stuff[row.index()].0.id;
                 if row_response.clicked() {
                     if let Some(old_spell) = &self.selected_spell {
                         if old_spell.id == new_spell_id {
@@ -837,14 +837,14 @@ fn render_spell(ui: &mut egui::Ui, spell: &mut Spell) -> Option<(Spell, bool)> {
         ui.add(
             egui::Hyperlink::from_label_and_url(
                 egui::RichText::new("(d20PFsrd)").size(10.0),
-                meta.d20pfsrd,
+                &meta.d20pfsrd,
             )
             .open_in_new_tab(true),
         );
         ui.add(
             egui::Hyperlink::from_label_and_url(
                 egui::RichText::new("(Archives)").size(10.0),
-                meta.archives,
+                &meta.archives,
             )
             .open_in_new_tab(true),
         );
@@ -934,16 +934,16 @@ fn render_spell(ui: &mut egui::Ui, spell: &mut Spell) -> Option<(Spell, bool)> {
             .size(13.0),
         );
     });
-    ui.horizontal_wrapped(|ui| {
-        ui.label(egui::RichText::new("Saving throw").strong().size(13.0));
-        ui.label(egui::RichText::new(format!("{};", &spell.saving_throw)).size(13.0));
-        ui.label(egui::RichText::new("Spell Resistance").strong().size(13.0));
-        ui.label(egui::RichText::new(&spell.spell_resistance).size(13.0));
-    });
+    if !spell.saving_throw.is_empty() || !spell.spell_resistance.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Saving throw").strong().size(13.0));
+            ui.label(egui::RichText::new(format!("{};", &spell.saving_throw)).size(13.0));
+            ui.label(egui::RichText::new("Spell Resistance").strong().size(13.0));
+            ui.label(egui::RichText::new(&spell.spell_resistance).size(13.0));
+        });
+    }
     ui.separator();
     let r = html2egui(&meta.description_struct, ui);
-    //let mut cache = egui_commonmark::CommonMarkCache::default();
-    //egui_commonmark::CommonMarkViewer::new().show(ui, &mut cache, meta.description_md);
 
     if spell.mythic {
         ui.separator();
@@ -1261,7 +1261,12 @@ impl SpellWindow {
     ) -> Option<(Spell, bool)> {
         if let Some(r) = egui::containers::Window::new("Spell")
             .open(filter_open)
-            .show(ctx, |ui| render_spell(ui, spell))
+            .show(ctx, |ui| {
+                egui::containers::ScrollArea::vertical()
+                    .auto_shrink(false)
+                    .show(ui, |ui| render_spell(ui, spell))
+                    .inner
+            })
         {
             r.inner?
         } else {

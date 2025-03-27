@@ -4,20 +4,6 @@ use std::fmt::Formatter;
 use filter_derive::FilterReprMacro;
 use filter_repr::{FilterRepr, FilterState};
 
-fn bool_from_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    match <String as serde::Deserialize>::deserialize(deserializer)?.as_ref() {
-        "1" => Ok(true),
-        "0" => Ok(false),
-        other => Err(serde::de::Error::invalid_value(
-            serde::de::Unexpected::Str(other),
-            &"1 or 0",
-        )),
-    }
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, Clone)]
 pub struct Spell {
     pub name: String,
@@ -28,157 +14,90 @@ pub struct Spell {
     pub spell_level: String,
     pub casting_time: String,
     pub components: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub costly_components: bool,
     pub range: String,
     pub area: String,
     pub effect: String,
     pub targets: String,
     pub duration: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub dismissible: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub shapeable: bool,
     pub saving_throw: String,
     pub spell_resistance: String,
     pub description: String,
-    pub description_formatted: String,
     pub source: String,
-    pub full_text: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub verbal: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub somatic: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub material: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub focus: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub divine_focus: bool,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub sor: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub wiz: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub cleric: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub druid: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub ranger: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub bard: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub paladin: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub alchemist: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub summoner: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub witch: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub inquisitor: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub oracle: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub antipaladin: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub magus: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub adept: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub deity: Option<String>,
     #[serde(rename = "SLA_Level")]
     pub sla_level: u32,
     pub domain: String,
     pub short_description: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub acid: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub air: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub chaotic: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub cold: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub curse: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub darkness: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub death: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub disease: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub earth: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub electricity: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub emotion: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub evil: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub fear: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub fire: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub force: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub good: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub language_dependent: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub lawful: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub light: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub mind_affecting: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub pain: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub poison: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub shadow: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub sonic: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub water: bool,
     pub linktext: String,
     pub id: u32,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub material_costs: Option<u32>,
     pub bloodline: String,
     pub patron: String,
     pub mythic_text: String,
     pub augmented: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub mythic: bool,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub bloodrager: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub shaman: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub psychic: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub medium: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub mesmerist: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub occultist: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub spiritualist: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub skald: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub investigator: Option<u32>,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub hunter: Option<u32>,
     pub haunt_statistics: String,
-    #[serde(deserialize_with = "bool_from_string")]
     pub ruse: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub draconic: bool,
-    #[serde(deserialize_with = "bool_from_string")]
     pub meditative: bool,
-    #[serde(deserialize_with = "csv::invalid_option")]
     pub summoner_unchained: Option<u32>,
 }
 
@@ -527,8 +446,9 @@ impl ClassType {
     }
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct SpellMeta {
-    pub d20pfsrd: &'static str,
-    pub archives: &'static str,
+    pub d20pfsrd: String,
+    pub archives: String,
     pub description_struct: SpellDescriptionStruct,
 }

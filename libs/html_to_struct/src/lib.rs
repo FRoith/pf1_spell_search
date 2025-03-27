@@ -499,44 +499,27 @@ pub fn process(string: &str) -> SpellDescriptionStruct {
         .read_from(&mut string.as_bytes())
         .unwrap();
 
-    process_node(&dom.document)
+    process_node(&dom.document).unwrap()
 }
 
-pub struct MyVec<T: Debug> {
-    vec: Vec<T>,
-}
-
-impl<T: Debug> Debug for MyVec<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}.into()", &self.vec)
-    }
-}
-
-impl<T: Debug> FromIterator<T> for MyVec<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        MyVec {
-            vec: iter.into_iter().collect(),
-        }
-    }
-}
-
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum SpellDescriptionStruct {
-    Body(MyVec<SpellDescriptionStruct>),
-    Paragraph(MyVec<SpellDescriptionStruct>),
-    Caption(MyVec<SpellDescriptionStruct>),
+    Body(Vec<SpellDescriptionStruct>),
+    Paragraph(Vec<SpellDescriptionStruct>),
+    Caption(Vec<SpellDescriptionStruct>),
     Italics(String),
     Bold(String),
-    Sup(MyVec<SpellDescriptionStruct>),
+    Sup(Vec<SpellDescriptionStruct>),
     Br,
-    Listing(MyVec<SpellDescriptionStruct>),
-    Line(MyVec<SpellDescriptionStruct>),
-    Table(MyVec<SpellDescriptionStruct>),
-    Tbody(MyVec<SpellDescriptionStruct>),
-    Thead(MyVec<SpellDescriptionStruct>),
-    Tfoot(MyVec<SpellDescriptionStruct>),
-    Row(MyVec<SpellDescriptionStruct>),
-    Header(MyVec<SpellDescriptionStruct>),
-    Cell(MyVec<SpellDescriptionStruct>),
+    Listing(Vec<SpellDescriptionStruct>),
+    Line(Vec<SpellDescriptionStruct>),
+    Table(Vec<SpellDescriptionStruct>),
+    Tbody(Vec<SpellDescriptionStruct>),
+    Thead(Vec<SpellDescriptionStruct>),
+    Tfoot(Vec<SpellDescriptionStruct>),
+    Row(Vec<SpellDescriptionStruct>),
+    Header(Vec<SpellDescriptionStruct>),
+    Cell(Vec<SpellDescriptionStruct>),
     Text(String),
 }
 
@@ -612,7 +595,7 @@ impl Debug for SpellDescriptionStruct {
     }
 }
 
-fn process_node(n: &Rc<Node>) -> SpellDescriptionStruct {
+fn process_node(n: &Rc<Node>) -> Option<SpellDescriptionStruct> {
     match &n.data {
         NodeData::Document => process_node(n.children.take().first().unwrap()),
         NodeData::Doctype {
@@ -622,7 +605,14 @@ fn process_node(n: &Rc<Node>) -> SpellDescriptionStruct {
         } => {
             panic!("Doctype")
         }
-        NodeData::Text { contents } => SpellDescriptionStruct::Text(contents.take().to_string()),
+        NodeData::Text { contents } => {
+            let s = contents.take().to_string();
+            if !s.trim().is_empty() {
+                Some(SpellDescriptionStruct::Text(s))
+            } else {
+                None
+            }
+        }
         NodeData::Comment { contents: _ } => {
             panic!("Comment")
         }
@@ -631,12 +621,20 @@ fn process_node(n: &Rc<Node>) -> SpellDescriptionStruct {
             attrs: _,
             template_contents: _,
             mathml_annotation_xml_integration_point: _,
-        } => match name.local.to_string().as_str() {
+        } => Some(match name.local.to_string().as_str() {
             "body" => SpellDescriptionStruct::Body(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "p" => SpellDescriptionStruct::Paragraph(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "i" => {
                 if let NodeData::Text { contents: s } = &n.children.take().first().unwrap().data {
@@ -653,44 +651,88 @@ fn process_node(n: &Rc<Node>) -> SpellDescriptionStruct {
                 }
             }
             "ul" => SpellDescriptionStruct::Listing(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "li" => SpellDescriptionStruct::Line(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
-            "html" => process_node(&n.children.take().get(1).unwrap()),
+            "html" => process_node(&n.children.take().get(1).unwrap()).unwrap(),
             "table" => SpellDescriptionStruct::Table(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "tbody" => SpellDescriptionStruct::Tbody(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "thead" => SpellDescriptionStruct::Thead(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "tfoot" => SpellDescriptionStruct::Tfoot(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "tr" => SpellDescriptionStruct::Row(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "th" => SpellDescriptionStruct::Header(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "td" => SpellDescriptionStruct::Cell(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "caption" => SpellDescriptionStruct::Caption(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "sup" => SpellDescriptionStruct::Sup(
-                n.children.take().iter().map(|e| process_node(e)).collect(),
+                n.children
+                    .take()
+                    .iter()
+                    .filter_map(|e| process_node(e))
+                    .collect(),
             ),
             "br" => SpellDescriptionStruct::Br,
             "head" | _ => {
                 panic!("What? {:?} {:?}", name.local.to_string(), n.children)
             }
-        },
+        }),
         NodeData::ProcessingInstruction {
             target: _,
             contents: _,

@@ -17,3 +17,4 @@ target_wasm
 
 # build script output
 spell-generated.rs
+gen-db
