@@ -252,6 +252,7 @@ pub enum SpellDescriptionStruct {
         })
         .collect();
 
+    fs::create_dir_all("gen-db").unwrap();
     save_spell_meta_table(spell_metas);
     save_spell_table(spells);
     fs::write("spell-generated.rs", cont).unwrap();
