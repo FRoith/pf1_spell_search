@@ -127,7 +127,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             }
         }
     </style>
-<link rel="modulepreload" href="https://tools.highdex.org/pf1_spell_search/pf1_spell_search.js" crossorigin="anonymous" integrity="sha384-+yOeoAiNv9J2ZokmQBUX4ytoN5o+TxKaxa3u2ufbCN9hmH00yq6WPQ6bQBS1HIEb"><link rel="preload" href="https://tools.highdex.org/pf1_spell_search/pf1_spell_search_bg.wasm" crossorigin="anonymous" integrity="sha384-dKzqwAGtcYUCS09dmvZrI//Zufaq+LFrAHiskCHLq77RROFdKc9rhOGduwbGcpSj" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="https://tools.highdex.org/pf1_spell_search/pf1_spell_search.js" crossorigin="anonymous" integrity="sha384-fyEvdAjDZAvlejJ8572II3LNsbcT76CS1QUfn8ngMZPlzOERlx7GEXFQiqkS2rVc"><link rel="preload" href="https://tools.highdex.org/pf1_spell_search/pf1_spell_search_bg.wasm" crossorigin="anonymous" integrity="sha384-Tqsz4pKAOw5sTS8hrVPFBL+x9ymmSxrB3SSMpPT2mN4yDFUrmbiNSvMF2npG9JKk" as="fetch" type="application/wasm"></head>
 
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
@@ -151,8 +151,6 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
                 navigator.serviceWorker.register('sw.js');
             });
         }
-
-        document.addEventListener("mousedown", e => console.log(e));
     </script>
 </body>
 
