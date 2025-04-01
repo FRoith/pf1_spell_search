@@ -1,4 +1,4 @@
-use egui::RichText;
+use egui::{Id, RichText};
 use egui_extras::{Column, TableBuilder, TableRow};
 use filter_repr::FilterRepr;
 
@@ -299,32 +299,38 @@ impl eframe::App for SpellSearchApp {
                         .filter_ui(ctx, &mut self.source_window_active);
                 }
 
-                if self.spell_table.spell_window_active
-                    && self.spell_table.selected_spell_window.is_some()
-                {
-                    let r = self.spell_table.spell_window.spell_ui(
-                        ctx,
-                        &mut self.spell_table.spell_window_active,
-                        self.spell_table.selected_spell_window.as_mut().unwrap(),
-                    );
+                let mut spell_to_add: Option<Spell> = None;
+                for (s, b, id) in &mut self.spell_table.selected_spell_windows {
+                    let r = self.spell_table.spell_window.spell_ui(ctx, b, s, *id);
                     match r {
                         Some((new_spell, true)) => {
-                            self.spell_table.selected_spell_window = Some(new_spell);
-                            self.spell_table.spell_window_active = true;
+                            spell_to_add = Some(new_spell);
                         }
                         Some((new_spell, false)) => {
-                            if let Some(old_spell) = &self.spell_table.selected_spell {
-                                if old_spell.id == new_spell.id {
-                                    self.spell_table.selected_spell = None;
-                                } else {
-                                    self.spell_table.selected_spell = Some(new_spell);
-                                }
-                            } else {
-                                self.spell_table.selected_spell = Some(new_spell);
-                            }
+                            *s = new_spell;
                         }
                         None => {}
                     }
+                }
+
+                if let Some(s) = spell_to_add {
+                    self.spell_table.selected_spell_windows.push((
+                        s,
+                        true,
+                        Id::new(self.spell_table.counter),
+                    ));
+                    self.spell_table.counter += 1;
+                }
+
+                if self
+                    .spell_table
+                    .selected_spell_windows
+                    .iter()
+                    .any(|(_, b, _)| !b)
+                {
+                    self.spell_table
+                        .selected_spell_windows
+                        .retain(|(_, b, _)| *b);
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -384,11 +390,13 @@ struct SpellTable {
 
     filter_string: String,
     selected_spell: Option<Spell>,
-    selected_spell_window: Option<Spell>,
-    spell_window_active: bool,
+    #[serde(skip, default)]
+    selected_spell_windows: Vec<(Spell, bool, Id)>,
     filter_window: FilterWindow,
     source_window: SourceWindow,
     spell_window: SpellWindow,
+    #[serde(skip, default)]
+    counter: usize,
 }
 
 impl SpellTable {
@@ -399,11 +407,11 @@ impl SpellTable {
             shown_columns,
             filter_string: String::new(),
             selected_spell: None,
-            selected_spell_window: None,
-            spell_window_active: false,
+            selected_spell_windows: Vec::new(),
             filter_window: FilterWindow::new(),
             source_window: SourceWindow::new(),
             spell_window: SpellWindow::new(),
+            counter: 0,
         }
     }
 
@@ -740,31 +748,25 @@ impl SpellTable {
                     }
                 }
                 let row_response = row.response();
-                let new_spell_id = stuff[row.index()].0.id;
+                let new_spell = stuff[row.index()].0;
                 if row_response.clicked() {
                     if let Some(old_spell) = &self.selected_spell {
-                        if old_spell.id == new_spell_id {
+                        if old_spell.id == new_spell.id {
                             self.selected_spell = None;
                         } else {
-                            self.selected_spell = Some(stuff[row.index()].0.clone())
+                            self.selected_spell = Some(new_spell.clone())
                         }
                     } else {
-                        self.selected_spell = Some(stuff[row.index()].0.clone())
+                        self.selected_spell = Some(new_spell.clone())
                     }
                 }
                 if row_response.secondary_clicked() {
-                    if let Some(old_spell) = &self.selected_spell_window {
-                        if old_spell.id == new_spell_id {
-                            self.selected_spell_window = None;
-                            self.spell_window_active = false;
-                        } else {
-                            self.selected_spell_window = Some(stuff[row.index()].0.clone());
-                            self.spell_window_active = true;
-                        }
-                    } else {
-                        self.selected_spell_window = Some(stuff[row.index()].0.clone());
-                        self.spell_window_active = true;
-                    }
+                    self.selected_spell_windows.push((
+                        new_spell.clone(),
+                        true,
+                        Id::new(self.counter),
+                    ));
+                    self.counter += 1;
                 }
             });
         }
@@ -784,18 +786,12 @@ impl SpellTable {
                 .inner;
             match r {
                 Some((new_spell, true)) => {
-                    if let Some(old_spell) = &self.selected_spell_window {
-                        if old_spell.id == new_spell.id && self.spell_window_active {
-                            self.selected_spell_window = None;
-                            self.spell_window_active = false;
-                        } else {
-                            self.selected_spell_window = Some(new_spell);
-                            self.spell_window_active = true;
-                        }
-                    } else {
-                        self.selected_spell_window = Some(new_spell);
-                        self.spell_window_active = true;
-                    }
+                    self.selected_spell_windows.push((
+                        new_spell.clone(),
+                        true,
+                        Id::new(self.counter),
+                    ));
+                    self.counter += 1;
                 }
                 Some((new_spell, false)) => {
                     self.selected_spell = Some(new_spell);
@@ -1258,8 +1254,10 @@ impl SpellWindow {
         ctx: &egui::Context,
         filter_open: &mut bool,
         spell: &mut Spell,
+        id: Id,
     ) -> Option<(Spell, bool)> {
-        if let Some(r) = egui::containers::Window::new("Spell")
+        if let Some(r) = egui::containers::Window::new(&spell.name)
+            .id(id)
             .open(filter_open)
             .show(ctx, |ui| {
                 egui::containers::ScrollArea::vertical()

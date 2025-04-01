@@ -133,10 +133,19 @@ fn struct2egui(
             None
         }
         SpellDescriptionStruct::Italics(text) => {
-            if let Some(spell) = ALL_SPELLS
-                .iter()
-                .find(|s| s.name.to_lowercase() == text.to_lowercase())
-            {
+            if let Some(spell) = ALL_SPELLS.iter().find(|s| {
+                if s.name.to_lowercase() == text.to_lowercase() {
+                    true
+                } else if s.name.contains(", ") {
+                    if let Some((s1, s2)) = s.name.to_lowercase().split_once(", ") {
+                        format!("{s2} {s1}") == text.to_lowercase()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }) {
                 let res = ui.link(egui::RichText::new(text));
                 if res.clicked() {
                     Some((spell.clone(), false))
