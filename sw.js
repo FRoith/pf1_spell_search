@@ -2,8 +2,8 @@ var cacheName = 'pf1-spell-search-pwa';
 var filesToCache = [
   './',
   './index.html',
-  './pf1_spell_search.js',
-  './pf1_spell_search_bg.wasm',
+  './pf1_spell_search-f01d46f5.js',
+  './pf1_spell_search_bg-e422dca1.wasm',
 ];
 
 /* Start the service worker and cache all of the app's content */
