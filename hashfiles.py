@@ -23,7 +23,7 @@ with open(f"{TRUNK_STAGING_DIR}/{name}_bg.wasm", "rb") as f:
 
 with open(f"{TRUNK_STAGING_DIR}/{name}.js") as f:
     data = f.read()
-data = data.replace("{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
+data = data.replace(f"{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
 with open(f"{TRUNK_STAGING_DIR}/{name}.js", "w") as f:
     f.write(data)
 
@@ -36,16 +36,16 @@ with open(f"{TRUNK_STAGING_DIR}/{name}.js", "rb") as f:
 
 with open(f"{TRUNK_STAGING_DIR}/index.html") as f:
     data = f.read()
-data = data.replace("{name}.js", f"{name}-{jshash}.js")
-data = data.replace("{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
+data = data.replace(f"{name}.js", f"{name}-{jshash}.js")
+data = data.replace(f"{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
 data = data.replace(fulljshash_old, fulljshash_new)
 with open(f"{TRUNK_STAGING_DIR}/index.html", "w") as f:
     f.write(data)
 
 with open(f"{TRUNK_STAGING_DIR}/sw.js") as f:
     data = f.read()
-data = data.replace("{name}.js", f"{name}-{jshash}.js")
-data = data.replace("{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
+data = data.replace(f"{name}.js", f"{name}-{jshash}.js")
+data = data.replace(f"{name}_bg.wasm", f"{name}_bg-{wasmhash}.wasm")
 with open(f"{TRUNK_STAGING_DIR}/sw.js", "w") as f:
     f.write(data)
 
