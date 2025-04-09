@@ -1,6 +1,6 @@
 {
-  "name": "egui Template PWA",
-  "short_name": "egui-template-pwa",
+  "name": "PF1 Spell Search PWA",
+  "short_name": "pf1-spell-search-pwa",
   "icons": [
     {
       "src": "./assets/icon-256.png",

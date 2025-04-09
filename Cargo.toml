@@ -1,6 +1,6 @@
 [package]
 name = "pf1_spell_search"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Felix Roithmayr <felix.roithmayr@aon.at>"]
 edition = "2021"
 include = ["LICENSE", "**/*.rs", "Cargo.toml"]
@@ -42,7 +42,7 @@ serde_json = "1.0.140"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.11.7"
+env_logger = "0.11.8"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

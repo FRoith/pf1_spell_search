@@ -1,2 +1,7 @@
 [build]
 filehash = false
+
+[[hooks]]
+stage = "post_build"
+command = "python3"
+command_arguments = ["hashfiles.py"]

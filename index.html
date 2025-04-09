@@ -134,12 +134,58 @@
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
-        // We disable caching during development so that we always view the latest version.
-        if ('serviceWorker' in navigator && window.location.hash !== "#dev") {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('sw.js');
-            });
+        function promptUserToRefresh(registration) {
+            if (window.confirm("New version available! Refresh?")) {
+                registration.waiting.postMessage('skipWaiting')
+            }
         }
+
+        function listenForWaitingServiceWorker(registration) {
+            console.log('listenForWaitingServiceWorker', registration)
+
+            function awaitStateChange() {
+                registration.installing.addEventListener('statechange', function() {
+                    if (this.state === 'installed') promptUserToRefresh(registration)
+                })
+            }
+
+            if (!registration) return
+            if (registration.waiting) return promptUserToRefresh(registration)
+            if (registration.installing) awaitStateChange()
+            registration.addEventListener('updatefound', awaitStateChange)
+        }
+            
+        // We disable caching during development so that we always view the latest version.
+        const enableServiceWorker = window.location.hash !== "#dev"
+        const serviceWorkerAvailable = 'serviceWorker' in navigator
+        // Register service worker
+        if (enableServiceWorker && serviceWorkerAvailable) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js')
+                    .then( (registration) => {
+                        console.log('Service worker registered', registration)
+                        listenForWaitingServiceWorker(registration) // ** skipWaiting() code
+                    })
+            });
+        }else{
+            console.log('Service worker disabled - process.env.NODE_ENV', process.env.NODE_ENV)
+        }
+
+        // Install prompt event handler
+        window.addEventListener('beforeinstallprompt', (event) => {
+            // Prevent Chrome 76 and later from showing the mini-infobar
+            event.preventDefault()
+            // Stash the event so it can be triggered later.
+            try{
+                showInstallPromotion()
+            }catch(e){
+                console.error('showInstallPromotion()', e)
+            }
+        })
+        
+        window.addEventListener('appinstalled', (event) => {
+            console.log('Rustmonster installed')
+        })
     </script>
 </body>
 
