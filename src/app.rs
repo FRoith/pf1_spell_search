@@ -15,6 +15,9 @@ use crate::{
     util::{html2egui, toggle},
 };
 
+#[cfg(target_arch = "wasm32")]
+pub static UPDATE_AVAILABLE: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
+
 fn _vec_from_string<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
@@ -336,6 +339,27 @@ impl eframe::App for SpellSearchApp {
                 egui::widgets::global_theme_preference_buttons(ui);
 
                 ui.hyperlink_to(" Github", "https://github.com/FRoith/pf1_spell_search");
+
+                #[cfg(target_arch = "wasm32")]
+                if let Ok(update_avail) = UPDATE_AVAILABLE.lock() {
+                    if *update_avail {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .link(
+                                    egui::RichText::new("🔃 Click to update...")
+                                        .color(egui::Color32::ORANGE),
+                                )
+                                .clicked()
+                            {
+                                web_sys::window()
+                                    .expect("no window found")
+                                    .location()
+                                    .reload_with_forceget(true)
+                                    .expect("could not force reload");
+                            };
+                        });
+                    }
+                }
             });
         });
 

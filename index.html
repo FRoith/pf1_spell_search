@@ -135,9 +135,9 @@
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
         function promptUserToRefresh(registration) {
-            if (window.confirm("New version available! Refresh?")) {
-                registration.waiting.postMessage('skipWaiting')
-            }
+            registration.waiting.postMessage('skipWaiting');
+            console.log("update available!");
+            window.wasmBindings.update_avail();
         }
 
         function listenForWaitingServiceWorker(registration) {
